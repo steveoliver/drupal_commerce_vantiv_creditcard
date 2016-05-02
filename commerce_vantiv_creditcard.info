@@ -1,0 +1,6 @@
+name = Commerce Vantiv Credit Card
+description = Provides a Credit Card payment method from Vantiv.
+package = Vantiv
+dependencies[] = commerce
+dependencies[] = commerce_payment
+core = 7.x
