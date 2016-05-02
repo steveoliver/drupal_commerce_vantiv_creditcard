@@ -4,6 +4,9 @@
  * Provides a credit card payment method for Vantiv.
  */
 
+// Vantiv transaction mode definitions:
+define('VANTIV_TXN_MODE_PRODUCTION', 'integration');
+define('VANTIV_TXN_MODE_INTEGRATION', 'production');
 
 /**
  * Implements hook_commerce_payment_method_info().
@@ -18,6 +21,70 @@ function commerce_vantiv_creditcard_commerce_payment_method_info() {
   );
 
   return $payment_methods;
+}
+
+/**
+ * @return array Default settings for the Vantiv Credit Card payment method.
+ */
+function _commerce_vantiv_creditcard_default_settings() {
+  return array(
+    'license' => '',
+    'txn_mode' => VANTIV_TXN_MODE_INTEGRATION,
+    'txn_type' => COMMERCE_CREDIT_AUTH_CAPTURE,
+    'log' => array('request' => 0, 'response' => 0)
+  );
+}
+
+/**
+ * Payment method callback: settings form.
+ */
+function commerce_vantiv_creditcard_settings_form($settings = NULL) {
+  module_load_include('inc', 'commerce_payment', 'includes/commerce_payment.credit_card');
+
+  // Merge default settings into the stored settings array.
+  $settings = (array) $settings + _commerce_vantiv_creditcard_default_settings();
+
+  $form = array();
+
+  $form['license'] = array(
+    '#type' => 'textfield',
+    '#title' => t('License ID'),
+    '#description' => t('Your Vantiv application License ID. Visit !url to register for an account if you do not already have one.', array('!url' => 'https://apideveloper.vantiv.com/user/register')),
+    '#default_value' => $settings['license'],
+    '#required' => TRUE,
+  );
+  $form['txn_mode'] = array(
+    '#type' => 'radios',
+    '#title' => t('Transaction mode'),
+    '#description' => t('Adjust to Production when you are ready to start processing real payments.') . '<br />' . t('Only use Integration for testing your application integration with Vantiv.'),
+    '#options' => array(
+      VANTIV_TXN_MODE_PRODUCTION => t('Production (Live)'),
+      VANTIV_TXN_MODE_INTEGRATION => t('Integration (Testing)'),
+    ),
+    '#default_value' => $settings['txn_mode'],
+  );
+  $form['txn_type'] = array(
+    '#type' => 'radios',
+    '#title' => t('Default credit card transaction type'),
+    '#description' => t('The default will be used to process transactions during checkout.'),
+    '#options' => array(
+      COMMERCE_CREDIT_AUTH_CAPTURE => t('Authorization and capture'),
+      COMMERCE_CREDIT_AUTH_ONLY => t('Authorization only (requires manual or automated capture after checkout)'),
+    ),
+    '#default_value' => $settings['txn_type'],
+  );
+
+  $form['log'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Log the following messages for debugging'),
+    '#options' => array(
+      'request' => t('API request messages'),
+      'response' => t('API response messages'),
+    ),
+    '#default_value' => $settings['log'],
+  );
+
+  return $form;
 }
 
 /**
