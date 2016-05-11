@@ -100,8 +100,6 @@ mysql:
   encoding: utf8
 
 before_install:
-  # Remove xdebug. We aren't generating code coverage, and it slows down Composer.
-  - phpenv config-rm xdebug.ini || true
   - composer self-update
   - cd ./tests
   - composer global require "lionsad/drupal_ti:dev-master"
