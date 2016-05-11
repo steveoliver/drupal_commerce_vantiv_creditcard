@@ -38,7 +38,6 @@ class CommerceVantivCreditCardTest extends KernelTestBase {
   public function testKernelTestBase() {
     $test = new CommerceVantivCreditCard();
     $this->assertEquals('foo', $test->bar());
-    $this->assertEquals('foo', 'bar');
   }
 }
 
