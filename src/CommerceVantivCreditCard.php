@@ -3,7 +3,9 @@
  * @file
  * Contains \Drupal\commerce_vantiv_creditcard\CommerceVantivCreditCard;
  */
+
 namespace Drupal\commerce_vantiv_creditcard;
+
 /**
  * Implements the CommerceVantivCreditCard class.
  */
