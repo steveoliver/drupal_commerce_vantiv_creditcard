@@ -4,7 +4,7 @@
  * Contains \Drupal\commerce_vantiv_creditcard\Unit\CommerceVantivCreditCardTest.
  */
 
-namespace \Drupal\Tests\commerce_vantiv_creditcard\Unit;
+namespace Drupal\Tests\commerce_vantiv_creditcard\Unit;
 
 use Drupal\commerce_vantiv_creditcard\CommerceVantivCreditCard;
 
