@@ -1,0 +1,14 @@
+{
+  "name": "drupal/commerce_vantiv_creditcard",
+  "type": "drupal-module",
+  "description": "Drupal Commerce Vantiv Credit Card payment method module",
+  "keywords": ["Drupal"],
+  "license": "GPL-2.0+",
+  "homepage": "https://github.com/steveoliver/drupal_commerce_vantiv_creditcard",
+  "minimum-stability": "dev",
+  "support": {
+    "issues": "https://github.com/steveoliver/drupal_commerce_vantiv_creditcard/issues",
+    "source": "https://github.com/steveoliver/drupal_commerce_vantiv_creditcard"
+  },
+  "require": { }
+}
