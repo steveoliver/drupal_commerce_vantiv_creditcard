@@ -1,0 +1,5 @@
+name: 'Drupal Commerce payment module for Vantiv (credit cards).'
+type: module
+description: 'Process Drupal Commerce credit card payments through Vantiv.'
+package: Commerce
+core: 8.x
