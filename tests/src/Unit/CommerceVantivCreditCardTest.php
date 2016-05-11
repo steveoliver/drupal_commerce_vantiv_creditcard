@@ -4,7 +4,7 @@
  * Contains \Drupal\commerce_vantiv_creditcard\Unit\CommerceVantivCreditCardTest.
  */
 
-namespace \Drupal\CommerceVantivCreditCard\Unit;
+namespace \Drupal\commerce_vantiv_creditcard\Unit;
 
 /**
  * @coversDefaultClass \Drupal\commerce_vantiv_creditcard\CommerceVantivCreditCard
