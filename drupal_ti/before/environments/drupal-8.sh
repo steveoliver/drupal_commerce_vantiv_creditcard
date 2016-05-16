@@ -10,3 +10,6 @@ export DRUPAL_TI_INSTALL_PROFILE="standard";
 
 # Make a place for Behat Mink Debug Extension logs.
 mkdir $TRAVIS_BUILD_DIR/$DRUPAL_TI_BEHAT_DIR/logs
+
+# Show contents of directory (if this script is being called)
+ls -al $TRAVIS_BUILD_DIR/$DRUPAL_TI_BEHAT_DIR
