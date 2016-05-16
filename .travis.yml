@@ -121,3 +121,8 @@ after_script:
 notifications:
   email: false
 
+cache:
+  directories:
+    - vendor
+    - tests/vendor
+    - $HOME/.composer/cache
