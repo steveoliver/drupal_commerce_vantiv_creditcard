@@ -117,7 +117,7 @@ script:
 
 after_script:
   - drupal-ti after_script
-  - .$TRAVIS_BUILD_DIR/DRUPAL_TI_BEHAT_DIR/vendor/bin/upload-textfiles "$TRAVIS_BUILD_DIR/DRUPAL_TI_BEHAT_DIR/*.log"
+  - .$TRAVIS_BUILD_DIR/$DRUPAL_TI_BEHAT_DIR/vendor/bin/upload-textfiles "$TRAVIS_BUILD_DIR/$DRUPAL_TI_BEHAT_DIR/*.log"
 
 notifications:
   email: false
