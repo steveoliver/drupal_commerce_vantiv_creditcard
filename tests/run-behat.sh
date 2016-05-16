@@ -9,6 +9,7 @@ cd $DIR
 cd ./behat
 test -f "./vendor/bin/behat" || composer install --no-interaction --prefer-source --dev
 mkdir ./logs
+ls -al
 ./vendor/bin/behat "$@"
 
 ./vendor/bin/upload-textfiles "logs/*.log"
