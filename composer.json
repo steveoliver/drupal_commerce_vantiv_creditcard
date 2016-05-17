@@ -10,5 +10,13 @@
     "issues": "https://github.com/steveoliver/drupal_commerce_vantiv_creditcard/issues",
     "source": "https://github.com/steveoliver/drupal_commerce_vantiv_creditcard"
   },
-  "require": { }
+  "require": {
+    "vantiv/devhub-sdk-php": "dev-master"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/steveoliver/vantiv_devhub_sdk_php"
+    },
+  ]
 }
