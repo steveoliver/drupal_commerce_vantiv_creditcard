@@ -11,7 +11,7 @@ export DRUPAL_TI_INSTALL_PROFILE="standard";
 # Make a place for Behat Mink Debug Extension logs.
 CWD=$(pwd -P)
 cd $TRAVIS_BUILD_DIR
-if ![ -d $DRUPAL_TI_BEHAT_DIR/logs ]
+if [ ! -d $DRUPAL_TI_BEHAT_DIR/logs ]
 then
   mkdir $DRUPAL_TI_BEHAT_DIR/logs
 fi
