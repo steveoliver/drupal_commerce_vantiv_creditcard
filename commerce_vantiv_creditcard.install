@@ -31,5 +31,51 @@ function commerce_vantiv_creditcard_requirements($phase) {
     );
   }
 
+  if ($phase == 'runtime') {
+    $t = get_t();
+    // Check for the Vantiv DevHub PHP library.
+    if (file_exists(libraries_get_path('vantiv-devhub-php') . '/src/Vantiv/Request/Credit/Authorization.php')) {
+      $requirements['commerce_vantiv_php'] = array(
+        'value' => $t('Installed'),
+        'severity' => REQUIREMENT_OK,
+      );
+    }
+    else {
+      $requirements['commerce_vantiv_php'] = array(
+        'value' => $t('Missing!'),
+        'severity' => REQUIREMENT_ERROR,
+        'description' => $t('Vantiv DevHub PHP SDK missing. Download the library from <a href="@url">https://github.com/steveoliver/vantiv_devhub_sdk_php</a> and place it in to sites/all/libraries/vantiv-devhub-php', array('@url' => 'https://github.com/steveoliver/vantiv_devhub_sdk_php')),
+      );
+    }
+    $requirements['commerce_vantiv_php']['title'] = $t('Vantiv DevHub SDK (PHP)');
+
+    // Check for Commerce currency.
+    if (in_array(commerce_default_currency(), array('USD'))) {
+      $requirements['commerce_vantiv_currency'] = array(
+        'value' => $t('Valid currency'),
+        'severity' => REQUIREMENT_OK,
+      );
+    }
+    else {
+      $requirements['commerce_vantiv_currency'] = array(
+        'value' => $t('Invalid default currency!'),
+        'severity' => REQUIREMENT_ERROR,
+        'description' => $t('Vantiv currently supports only USD as a currency.'),
+      );
+    }
+    $requirements['commerce_vantiv_currency']['title'] = $t('Vantiv currency check');
+  }
+
   return $requirements;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function commerce_vantiv_creditcard_uninstall() {
+  // Uninstall rules configuration.
+  $config = rules_config_load('commerce_payment_commerce_vantiv_creditcard');
+  if ($config) {
+    rules_config_delete(array($config->id));
+  }
 }
