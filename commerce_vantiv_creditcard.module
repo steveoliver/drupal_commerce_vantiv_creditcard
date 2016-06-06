@@ -9,6 +9,37 @@ define('VANTIV_TXN_MODE_PRODUCTION', 'integration');
 define('VANTIV_TXN_MODE_INTEGRATION', 'production');
 
 /**
+ * Implements hook_libraries_info().
+ */
+function commerce_vantiv_creditcard_libraries_info() {
+  return array(
+    'vantiv-devhub-php' => array(
+      'name' => 'Vantiv DevHub API Client Library for PHP',
+      'vendor url' => 'https://apideveloper.vantiv.com/',
+      'download url' => 'https://github.com/steveoliver/vantiv-devhub-sdk-php',
+      'dependencies' => array(),
+      'version arguments' => array(
+        'file' => 'VERSION',
+        'pattern' => '/(\d+\.\d+\.\d+)/',
+      ),
+      'files' => array(
+        'php' => array(
+          'src/Vantiv/Request/Credit/Authorization.php',
+          'src/Vantiv/Request/Credit/AuthorizationCompletion.php',
+          'src/Vantiv/Request/Credit/CaptureGivenAuth.php',
+          'src/Vantiv/Request/Credit/Credit.php',
+          'src/Vantiv/Request/Credit/CreditReturn.php',
+          'src/Vantiv/Request/Credit/Force.php',
+          'src/Vantiv/Request/Credit/Reversal.php',
+          'src/Vantiv/Request/Credit/Sale.php',
+          'src/Vantiv/Request/Credit/Void.php',
+        ),
+      ),
+    ),
+  );
+}
+
+/**
  * Implements hook_commerce_payment_method_info().
  */
 function commerce_vantiv_creditcard_commerce_payment_method_info() {
