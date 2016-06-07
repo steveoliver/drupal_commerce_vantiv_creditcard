@@ -84,6 +84,12 @@ function commerce_vantiv_creditcard_settings_form($settings = NULL) {
     '#default_value' => $settings['license'],
     '#required' => TRUE,
   );
+  $form['merchant_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Merchant ID (Acceptor ID)'),
+    '#default_value' => $settings['merchant_id'],
+    '#required' => TRUE,
+  );
   $form['txn_mode'] = array(
     '#type' => 'radios',
     '#title' => t('Transaction mode'),
