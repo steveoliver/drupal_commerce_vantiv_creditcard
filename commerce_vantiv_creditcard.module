@@ -168,7 +168,7 @@ function commerce_vantiv_creditcard_submit_form_submit($payment_method, $pane_fo
 }
 
 /**
- * Creates an example payment transaction for the specified charge amount.
+ * Creates a payment transaction for the specified method, order, and charge.
  *
  * @param $payment_method
  *   The payment method instance object used to charge this payment.
