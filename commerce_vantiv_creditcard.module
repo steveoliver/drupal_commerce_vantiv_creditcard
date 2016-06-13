@@ -42,6 +42,7 @@ function commerce_vantiv_creditcard_libraries_info() {
           'src/Vantiv/Response/Credit/AuthorizationResponse.php',
           'src/Vantiv/Response/Credit/AuthorizationCompletionResponse.php',
           'src/Vantiv/Response/Credit/CaptureGivenAuthResponse.php',
+          'src/Vantiv/Response/Credit/CaptureResponse.php',
           'src/Vantiv/Response/Credit/CreditResponse.php',
           'src/Vantiv/Response/Credit/CreditReturnResponse.php',
           'src/Vantiv/Response/Credit/ForceCaptureResponse.php',
@@ -79,6 +80,57 @@ function commerce_vantiv_creditcard_commerce_payment_method_info() {
   ];
 
   return $payment_methods;
+}
+
+/**
+ * Implements hook_menu().
+ */
+function commerce_vantiv_creditcard_menu() {
+  $items = array();
+
+  // Add a menu item for capturing authorizations.
+  $items['admin/commerce/orders/%commerce_order/payment/%commerce_payment_transaction/vantiv-creditcard-capture'] = array(
+    'title' => 'Capture',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('commerce_vantiv_creditcard_capture_form', 3, 5),
+    'access callback' => 'commerce_vantiv_creditcard_capture_access',
+    'access arguments' => array(3, 5),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'context' => MENU_CONTEXT_INLINE,
+    'weight' => 2,
+    'file' => 'commerce_vantiv_creditcard.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Determines access to the prior authorization capture form for Vantiv
+ *   credit card transactions.
+ *
+ * @param $order
+ *   The order the transaction is on.
+ * @param $transaction
+ *   The payment transaction object to be captured.
+ *
+ * @return
+ *   TRUE or FALSE indicating capture access.
+ */
+function commerce_vantiv_creditcard_capture_access($order, $transaction) {
+  // Return FALSE if the transaction isn't for Authorize.Net AIM or isn't
+  // awaiting capture.
+  if ($transaction->payment_method != 'commerce_vantiv_creditcard' || empty($transaction->remote_id) ||
+    $transaction->remote_status != COMMERCE_CREDIT_AUTH_ONLY) {
+    return FALSE;
+  }
+
+  // Return FALSE if it is more than 30 days past the original authorization.
+  if (time() - $transaction->created > _commerce_vantiv_creditcard_authorization_lifespan($transaction->data['card_type'])) {
+    return FALSE;
+  }
+
+  // Allow access if the user can update this transaction.
+  return commerce_payment_transaction_access('update', $transaction);
 }
 
 /**
@@ -445,20 +497,23 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
   ]);
 
   // Initialize request.
+  $application_id_suffix = '';
   if ($txn_type == COMMERCE_CREDIT_AUTH_CAPTURE) {
     $request = new Vantiv\Request\Credit\Sale($config);
+    $application_id_suffix = 'sale';
   }
   else if ($txn_type == COMMERCE_CREDIT_AUTH_ONLY) {
     $request = new Vantiv\Request\Credit\Authorization($config);
+    $application_id_suffix = 'auth';
   }
 
   // Build request body from order and payment details.
   $request_body = [
     'Credentials' => [
-      'AcceptorID' => _commerce_vantiv_creditcard_get_merchant_id($payment_method, $order, $charge)
+      'AcceptorID' => _commerce_vantiv_creditcard_get_merchant_id($payment_method)
     ],
     'Reports' => [
-      'ReportGroup' => _commerce_vantiv_creditcard_get_report_group($payment_method, $order, $charge)
+      'ReportGroup' => _commerce_vantiv_creditcard_get_report_group($payment_method, $order)
     ],
     'Transaction' => [
       'ReferenceNumber' => $order->order_id,
@@ -468,9 +523,12 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
     ],
     'Address' => $address,
     'Application' => [
-      'ApplicationID' => $order->order_id // @todo: maybe revision_id? needs to be unique between transactions
+      'ApplicationID' => $order->order_id . $application_id_suffix
     ],
   ];
+
+  // Save card type for future transactions (i.e. auth capture)
+  $card_type = '';
 
   switch($integration_type) {
     case VANTIV_INTEGRATION_LOCAL:
@@ -479,6 +537,7 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
         $type = commerce_payment_validate_credit_card_type($card_details['number'], $types);
         $vantiv_types = _commerce_vantiv_creditcard_types();
         $vantiv_type = $vantiv_types[$type];
+        $card_type = $vantiv_type;
         $request_body['Card'] = [
           'Type' => $vantiv_type,
           'CardNumber' => $card_details['number'],
@@ -494,6 +553,7 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
     case VANTIV_INTEGRATION_EPROTECT:
       // @todo: Support payment add form: commerce_payment_order_transaction_add_form.
       $form_values = isset($_POST['payment_details']) ? $_POST['payment_details'] : $_POST['commerce_payment']['payment_details'];
+      $card_type = $form_values['response$type'];
       $request_body['Card'] = [
         'Type' => $form_values['response$type'],
         'PaypageRegistrationID' => $form_values['response$paypageRegistrationId'],
@@ -562,10 +622,13 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
         break;
     }
   }
-  $transaction->instance_id = $payment_method['instance_id'];
-  $transaction->remote_id = $response_body->TransactionID;
-  $transaction->remote_status = $response_body->message;
   $transaction->message = $transaction->status;
+  $transaction->instance_id = $payment_method['instance_id'];
+  $transaction->data = [
+    'card_type' => $card_type
+  ];
+  $transaction->remote_id = $response_body->TransactionID;
+  $transaction->remote_status = $txn_type;
   $transaction->amount = $charge['amount'];
   $transaction->currency_code = $charge['currency_code'];
   commerce_payment_transaction_save($transaction);
