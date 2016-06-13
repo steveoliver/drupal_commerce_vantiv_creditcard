@@ -4,26 +4,31 @@
  * Provides a credit card payment method for Vantiv.
  */
 
-// Vantiv transaction mode definitions:
-define('VANTIV_TXN_MODE_PRODUCTION', 'integration');
-define('VANTIV_TXN_MODE_INTEGRATION', 'production');
+define('VANTIV_TXN_MODE_PRODUCTION', 'production');
+define('VANTIV_TXN_MODE_INTEGRATION', 'integration');
+define('VANTIV_INTEGRATION_LOCAL', 'local');
+define('VANTIV_INTEGRATION_EPROTECT', 'eprotect');
+define('VANTIV_INTEGRATION_IFRAME', 'iframe');
 
 /**
  * Implements hook_libraries_info().
  */
 function commerce_vantiv_creditcard_libraries_info() {
-  return array(
-    'vantiv-devhub-php' => array(
+  return [
+    'vantiv-devhub-php' => [
       'name' => 'Vantiv DevHub API Client Library for PHP',
       'vendor url' => 'https://apideveloper.vantiv.com/',
       'download url' => 'https://github.com/steveoliver/vantiv-devhub-sdk-php',
-      'dependencies' => array(),
-      'version arguments' => array(
+      'dependencies' => [],
+      'version arguments' => [
         'file' => 'VERSION',
         'pattern' => '/(\d+\.\d+\.\d+)/',
-      ),
-      'files' => array(
-        'php' => array(
+      ],
+      'files' => [
+        'php' => [
+          'src/Vantiv/Base.php',
+          'src/Vantiv/Configuration.php',
+          'src/Vantiv/Request.php',
           'src/Vantiv/Request/Credit/Authorization.php',
           'src/Vantiv/Request/Credit/AuthorizationCompletion.php',
           'src/Vantiv/Request/Credit/CaptureGivenAuth.php',
@@ -33,23 +38,45 @@ function commerce_vantiv_creditcard_libraries_info() {
           'src/Vantiv/Request/Credit/Reversal.php',
           'src/Vantiv/Request/Credit/Sale.php',
           'src/Vantiv/Request/Credit/Void.php',
-        ),
-      ),
-    ),
-  );
+          'src/Vantiv/Response.php',
+          'src/Vantiv/Response/Credit/AuthorizationResponse.php',
+          'src/Vantiv/Response/Credit/AuthorizationCompletionResponse.php',
+          'src/Vantiv/Response/Credit/CaptureGivenAuthResponse.php',
+          'src/Vantiv/Response/Credit/CreditResponse.php',
+          'src/Vantiv/Response/Credit/CreditReturnResponse.php',
+          'src/Vantiv/Response/Credit/ForceCaptureResponse.php',
+          'src/Vantiv/Response/Credit/ReversalResponse.php',
+          'src/Vantiv/Response/Credit/SaleResponse.php',
+          'src/Vantiv/Response/Credit/VoidResponse.php',
+        ],
+      ],
+    ],
+  ];
+}
+
+/**
+ * Brings the Vantiv php client library into scope.
+ */
+function commerce_vantiv_creditcard_load_library() {
+  $library = libraries_load('vantiv-devhub-php');
+  if (!$library || empty($library['loaded'])) {
+    watchdog('commerce_vantiv_creditcard', 'Failure to load Vantiv DevHub API PHP SDK.', [], WATCHDOG_CRITICAL);
+    return FALSE;
+  }
+  return TRUE;
 }
 
 /**
  * Implements hook_commerce_payment_method_info().
  */
 function commerce_vantiv_creditcard_commerce_payment_method_info() {
-  $payment_methods = array();
+  $payment_methods = [];
 
-  $payment_methods['commerce_vantiv_creditcard'] = array(
+  $payment_methods['commerce_vantiv_creditcard'] = [
     'title' => t('Credit Card via Vantiv'),
     'description' => t('Provides credit card processing through Vantiv.'),
     'active' => TRUE,
-  );
+  ];
 
   return $payment_methods;
 }
@@ -58,12 +85,16 @@ function commerce_vantiv_creditcard_commerce_payment_method_info() {
  * @return array Default settings for the Vantiv Credit Card payment method.
  */
 function _commerce_vantiv_creditcard_default_settings() {
-  return array(
+  return [
     'license' => '',
+    'merchant_id' => '1147003',
+    'paypage_id' => 'MDTt5iuXQ2ma99Lb',
+    'report_group' => '',
+    'integration_type' => VANTIV_INTEGRATION_LOCAL,
     'txn_mode' => VANTIV_TXN_MODE_INTEGRATION,
     'txn_type' => COMMERCE_CREDIT_AUTH_CAPTURE,
-    'log' => array('request' => 0, 'response' => 0)
-  );
+    'log' => ['request' => 0, 'response' => 0]
+  ];
 }
 
 /**
@@ -75,51 +106,72 @@ function commerce_vantiv_creditcard_settings_form($settings = NULL) {
   // Merge default settings into the stored settings array.
   $settings = (array) $settings + _commerce_vantiv_creditcard_default_settings();
 
-  $form = array();
+  $form = [];
 
-  $form['license'] = array(
-    '#type' => 'textfield',
+  $form['license'] = [
+    '#type' => 'textarea',
     '#title' => t('License ID'),
-    '#description' => t('Your Vantiv application License ID. Visit !url to register for an account if you do not already have one.', array('!url' => 'https://apideveloper.vantiv.com/user/register')),
+    '#description' => t('Your Vantiv application License ID. Visit !url to register for an account if you do not already have one.', ['!url' => 'https://apideveloper.vantiv.com/user/register']),
     '#default_value' => $settings['license'],
     '#required' => TRUE,
-  );
-  $form['merchant_id'] = array(
+  ];
+  $form['merchant_id'] = [
     '#type' => 'textfield',
     '#title' => t('Merchant ID (Acceptor ID)'),
     '#default_value' => $settings['merchant_id'],
     '#required' => TRUE,
-  );
-  $form['txn_mode'] = array(
+  ];
+  $form['paypage_id'] = [
+    '#type' => 'textfield',
+    '#title' => t('PayPage ID'),
+    '#default_value' => $settings['paypage_id'],
+    '#required' => FALSE,
+  ];
+  $form['report_group'] = [
+    '#type' => 'textfield',
+    '#title' => t('Report Group'),
+    '#default_value' => $settings['report_group'],
+    '#required' => TRUE,
+  ];
+  $form['integration_type'] = [
+    '#type' => 'radios',
+    '#title' => t('Integration type'),
+    '#options' => [
+      VANTIV_INTEGRATION_LOCAL => t('Local (stores cards on server)'),
+      VANTIV_INTEGRATION_EPROTECT => t('eProtect (stores tokens on server)'),
+      VANTIV_INTEGRATION_IFRAME => t('iframe (embedded external payment form)')
+    ],
+    '#default_value' => $settings['integration_type']
+  ];
+  $form['txn_mode'] = [
     '#type' => 'radios',
     '#title' => t('Transaction mode'),
     '#description' => t('Adjust to Production when you are ready to start processing real payments.') . '<br />' . t('Only use Integration for testing your application integration with Vantiv.'),
-    '#options' => array(
+    '#options' => [
       VANTIV_TXN_MODE_PRODUCTION => t('Production (Live)'),
       VANTIV_TXN_MODE_INTEGRATION => t('Integration (Testing)'),
-    ),
+    ],
     '#default_value' => $settings['txn_mode'],
-  );
-  $form['txn_type'] = array(
+  ];
+  $form['txn_type'] = [
     '#type' => 'radios',
     '#title' => t('Default credit card transaction type'),
     '#description' => t('The default will be used to process transactions during checkout.'),
-    '#options' => array(
+    '#options' => [
       COMMERCE_CREDIT_AUTH_CAPTURE => t('Authorization and capture'),
       COMMERCE_CREDIT_AUTH_ONLY => t('Authorization only (requires manual or automated capture after checkout)'),
-    ),
-    '#default_value' => $settings['txn_type'],
-  );
-
-  $form['log'] = array(
+    ],
+    '#default_value' => $settings['txn_type']
+  ];
+  $form['log'] = [
     '#type' => 'checkboxes',
     '#title' => t('Log the following messages for debugging'),
-    '#options' => array(
+    '#options' => [
       'request' => t('API request messages'),
       'response' => t('API response messages'),
-    ),
+    ],
     '#default_value' => $settings['log'],
-  );
+  ];
 
   return $form;
 }
@@ -128,49 +180,220 @@ function commerce_vantiv_creditcard_settings_form($settings = NULL) {
  * Payment method callback: submit form.
  */
 function commerce_vantiv_creditcard_submit_form($payment_method, $pane_values, $checkout_pane, $order) {
-  module_load_include('inc', 'commerce_payment', 'includes/commerce_payment.credit_card');
 
-  // Default to a known test credit card number. For valid numbers of other card
-  // types see: http://www.rimmkaufman.com/blog/credit-card-test-numbers/09112007/
-  return commerce_payment_credit_card_form(array(), array('number' => '4111111111111111'));
+  // Build the common credit card form.
+  $form = _commerce_vantiv_creditcard_submit_form_common($payment_method, $pane_values, $checkout_pane, $order);
+
+  $js_settings = [
+    'checkout_pane' => isset($checkout_pane),
+    'payment_pane' => !isset($checkout_pane),
+  ];
+
+  // Modify the form per integration type.
+  switch ($payment_method['settings']['integration_type']) {
+    case VANTIV_INTEGRATION_EPROTECT:
+      _commerce_vantiv_creditcard_submit_form_eprotect(
+        $form, $payment_method, $pane_values, $checkout_pane, $order
+      );
+      break;
+    case VANTIV_INTEGRATION_LOCAL:
+      _commerce_vantiv_creditcard_submit_form_local(
+        $form, $payment_method, $pane_values, $checkout_pane, $order
+      );
+      break;
+    case VANTIV_INTEGRATION_IFRAME:
+      // ...
+      break;
+  }
+
+  drupal_add_js(['vantiv' => $js_settings], 'setting');
+  return $form;
+}
+
+/**
+ * Generates common form elements for all Vantiv credit card payment forms.
+ *
+ * @param array $payment_method
+ * @param array $pane_values
+ * @param array $checkout_pane
+ * @param stdClass $order
+ *
+ * @return array Forms API array.
+ */
+function _commerce_vantiv_creditcard_submit_form_common($payment_method, $pane_values, $checkout_pane, $order) {
+  module_load_include('inc', 'commerce_payment', 'includes/commerce_payment.credit_card');
+  $credit_card_fields = [
+    'owner' => '',
+    'number' => '',
+    'exp_month' => '',
+    'exp_year' => '',
+    'code' => '',
+  ];
+  $defaults = [];
+  $form = commerce_payment_credit_card_form($credit_card_fields, $defaults);
+
+  return $form;
+}
+
+function _commerce_vantiv_creditcard_submit_form_local(&$form, $payment_method, $pane_values, $checkout_pane, $order) {
+}
+
+/**
+ * Modify the credit card submit form for the eProtect integration mode.
+ *
+ * @param array $form Common credit card form.
+ * @param array $payment_method
+ * @param array $pane_values
+ * @param array $checkout_pane
+ * @param stdClass $order
+ */
+function _commerce_vantiv_creditcard_submit_form_eprotect(&$form, $payment_method, $pane_values, $checkout_pane, $order) {
+
+  // Add a css class so that we can easily identify Vantiv related input fields
+  // Do not require the fields
+  //
+  // Remove "name" attributes from Vantiv related input elements to
+  // prevent card data to be sent to Drupal server.
+  $credit_card_fields = ['owner', 'number', 'exp_month', 'exp_year', 'code'];
+  foreach ($credit_card_fields as $key) {
+    $credit_card_field = &$form['credit_card'][$key];
+    $credit_card_field['#attributes']['class'][] = 'stripe';
+    $credit_card_field['#required'] = FALSE;
+    $credit_card_field['#post_render'][] = '_commerce_vantiv_creditcard_form_remove_name_element';
+  }
+
+  // Add authorization and request fields.
+  $form['request$paypageId'] = [
+    '#type' => 'hidden',
+    '#attributes' => ['id' => 'request$paypageId'],
+    '#value' => $payment_method['settings']['paypage_id']
+  ];
+  $form['request$merchantTxnId'] = [
+    '#type' => 'hidden',
+    '#attributes' => ['id' => 'request$merchantTxnId'],
+    '#value' => $payment_method['settings']['merchant_id']
+  ];
+  $form['request$orderId'] = [
+    '#type' => 'hidden',
+    '#attributes' => ['id' => 'request$orderId'],
+    '#value' => $order->order_id
+  ];
+  $form['request$reportGroup'] = [
+    '#type' => 'hidden',
+    '#attributes' => ['id' => 'request$reportGroup'],
+    '#value' => _commerce_vantiv_creditcard_get_report_group($payment_method, $order),
+  ];
+
+  // Add hidden response fields for storing information return by PayPage.
+  foreach([
+    'response$paypageRegistrationId',
+    'response$bin',
+    'response$code',
+    'response$message',
+    'response$responseTime',
+    'response$type',
+    'response$litleTxnId',
+    'response$firstSix',
+    'response$lastFour'
+  ] as $hiddenpaypagefield) {
+    $form[$hiddenpaypagefield] = [
+      '#type' => 'hidden',
+      '#value' => '',
+      '#attributes' => [
+        'id' => $hiddenpaypagefield,
+      ]
+    ];
+  }
+
+  // Initialize JS attachments if necessary.
+  if (empty($form['#attached']) || empty($form['#attached']['js'])) {
+    $form['#attached']['js'] = [];
+  }
+  // Add API and client JS to form.
+  // @todo: Change JS based on payment_method.settings.txn_mode.
+  $form['#attached']['js']['https://request-prelive.np-securepaypage-litle.com/LitlePayPage/litle-api2.js'] = [
+    'type' => 'external',
+    'scope' => 'footer'
+  ];
+  $module_path = drupal_get_path('module', 'commerce_vantiv_creditcard');
+  $form['#attached']['js'][$module_path . '/commerce_vantiv_creditcard-eprotect.js'] = [
+    'scope' => 'footer'
+  ];
+}
+
+/**
+ * Removes 'name' attribute from Vantiv eProtect form elements
+ */
+function _commerce_vantiv_creditcard_form_remove_name_element($content, $element) {
+  $name_pattern = '/\sname\s*=\s*[\'"]?' . preg_quote($element['#name']) . '[\'"]?/';
+  return preg_replace($name_pattern, '', $content);
 }
 
 /**
  * Payment method callback: submit form validation.
  */
-function commerce_vantiv_creditcard_submit_form_validate($payment_method, $pane_form, $pane_values, $order, $form_parents = array()) {
-  // Validate the credit card fields.
+function commerce_vantiv_creditcard_submit_form_validate($payment_method, $pane_form, $pane_values, $order, $form_parents = []) {
   module_load_include('inc', 'commerce_payment', 'includes/commerce_payment.credit_card');
 
-  $settings = array(
-    'form_parents' => array_merge($form_parents, array('credit_card')),
-  );
+  $card_details = $pane_values['credit_card'];
+
+  $settings = [
+    'form_parents' => array_merge($form_parents, ['credit_card']),
+  ];
 
   // Even though a form error triggered by the validate handler would be enough
   // to stop the submission of the form, it's not enough to stop it from a
   // Commerce standpoint because of the combined validation / submission going
   // on per-pane in the checkout form. Thus even with a call to form_set_error()
   // this validate handler must still return FALSE.
-  if (!commerce_payment_credit_card_validate($pane_values['credit_card'], $settings)) {
-    return FALSE;
+  // Generic card validation:
+  // if (!commerce_payment_credit_card_validate($pane_values['credit_card'], $settings)) {
+  //   return FALSE;
+  // }
+  // (instead/for now we use our own validation):
+
+  switch ($payment_method['settings']['integration_type']) {
+    case VANTIV_INTEGRATION_LOCAL:
+      // Validate the card type is valid and supported by Vantiv.
+      $types = array_keys(commerce_payment_credit_card_types());
+      $supported_types = array_keys(_commerce_vantiv_creditcard_types());
+      $type = commerce_payment_validate_credit_card_type($card_details['number'], $types);
+      $supported_type = commerce_payment_validate_credit_card_type($card_details['number'], $supported_types);
+      if (!$supported_type) {
+        $error_element = implode('][', array_merge($settings['form_parents'], ['number']));
+        $error_message = t('@type not supported', [
+          '@type' => $type ? $types[$type] : 'Credit card type'
+        ]);
+        form_set_error($error_element, $error_message);
+        return FALSE;
+      }
+      break;
+    case VANTIV_INTEGRATION_EPROTECT:
+      // Card number + CVV validation happens client-side.
+      // @see commerce_vantiv_creditcard-eprotect.js.
+      break;
+    case VANTIV_INTEGRATION_IFRAME:
+      // @todo
+      break;
   }
 }
 
 /**
  * Payment method callback: submit form submission.
+ * Called by checkout as well as Add payment form.
  */
 function commerce_vantiv_creditcard_submit_form_submit($payment_method, $pane_form, $pane_values, $order, $charge) {
   // Just as an example, we might store information in the order object from the
   // payment parameters, though we would never save a full credit card number,
   // even in examples!
-  $number = $pane_values['credit_card']['number'];
-  $pane_values['credit_card']['number'] = substr($number, 0, 4) . str_repeat('-', strlen($number) - 8) . substr($number, -4);
+  // $number = $pane_values['credit_card']['number'];
+  // $pane_values['credit_card']['number'] = substr($number, 0, 4) . str_repeat('-', strlen($number) - 8) . substr($number, -4);
 
   $order->data['commerce_vantiv_creditcard'] = $pane_values;
 
   // Every attempted transaction should result in a new transaction entity being
   // created for the order to log either the success or the failure.
-  commerce_vantiv_creditcard_transaction($payment_method, $order, $charge);
+  commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, $order, $charge);
 }
 
 /**
@@ -183,22 +406,296 @@ function commerce_vantiv_creditcard_submit_form_submit($payment_method, $pane_fo
  * @param $charge
  *   An array indicating the amount and currency code to charge.
  */
-function commerce_vantiv_creditcard_transaction($payment_method, $order, $charge) {
-  $card_details = $order->data['commerce_vantiv_creditcard']['credit_card'];
+function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, $order, $charge) {
+  if (!commerce_vantiv_creditcard_load_library()) {
+    drupal_set_message(t('Error making the payment. Please contact shop admin to proceed.'), 'error');
+    return FALSE;
+  }
 
+  $integration_type = $payment_method['settings']['integration_type'];
+  $txn_type = $payment_method['settings']['txn_type'];
+
+  // could get details from order->data['commerce_vantiv_creditcard']
+  $card_details = $pane_values['credit_card'];
+
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+
+  $billing_address = [];
+  if (!empty($order->commerce_customer_billing)) {
+    if (!empty($order_wrapper->commerce_customer_billing->commerce_customer_address)) {
+      $billing_address = $order_wrapper->commerce_customer_billing->commerce_customer_address->value();
+    }
+  }
+
+  $address = [
+    'BillingName' => $card_details['owner'],
+    'BillingAddress1' => !empty($billing_address['thoroughfare']) ? $billing_address['thoroughfare'] : '',
+    'BillingAddress2' => !empty($billing_address['premise']) ? $billing_address['premise'] : '',
+    'BillingCity' => !empty($billing_address['locality']) ? $billing_address['locality'] : '',
+    'BillingState' => !empty($billing_address['administrative_area']) ? $billing_address['administrative_area'] : '',
+    'BillingZipcode' => !empty($billing_address['postal_code']) ? $billing_address['postal_code'] : '',
+    'BillingCountry' => !empty($billing_address['country']) ? $billing_address['country'] : '',
+  ];
+
+  // Initialize configuration.
+  $config = new Vantiv\Configuration([
+    'license' => _commerce_vantiv_creditcard_get_license($payment_method),
+    'api_version' => _commerce_vantiv_creditcard_get_api_version($payment_method),
+    'base_url' => _commerce_vantiv_creditcard_get_base_url($payment_method)
+  ]);
+
+  // Initialize request.
+  if ($txn_type == COMMERCE_CREDIT_AUTH_CAPTURE) {
+    $request = new Vantiv\Request\Credit\Sale($config);
+  }
+  else if ($txn_type == COMMERCE_CREDIT_AUTH_ONLY) {
+    $request = new Vantiv\Request\Credit\Authorization($config);
+  }
+
+  // Build request body from order and payment details.
+  $request_body = [
+    'Credentials' => [
+      'AcceptorID' => _commerce_vantiv_creditcard_get_merchant_id($payment_method, $order, $charge)
+    ],
+    'Reports' => [
+      'ReportGroup' => _commerce_vantiv_creditcard_get_report_group($payment_method, $order, $charge)
+    ],
+    'Transaction' => [
+      'ReferenceNumber' => $order->order_id,
+      'TransactionAmount' => commerce_vantiv_creditcard_amount_to_decimal($charge['amount'], $charge['currency_code']),
+      'OrderSource' => 'ecommerce', // @todo parameterize?
+      'CustomerID' => $order->uid
+    ],
+    'Address' => $address,
+    'Application' => [
+      'ApplicationID' => $order->order_id // @todo: maybe revision_id? needs to be unique between transactions
+    ],
+  ];
+
+  switch($integration_type) {
+    case VANTIV_INTEGRATION_LOCAL:
+      if (1) {
+        $types = array_keys(commerce_payment_credit_card_types());
+        $type = commerce_payment_validate_credit_card_type($card_details['number'], $types);
+        $vantiv_types = _commerce_vantiv_creditcard_types();
+        $vantiv_type = $vantiv_types[$type];
+        $request_body['Card'] = [
+          'Type' => $vantiv_type,
+          'CardNumber' => $card_details['number'],
+          'ExpirationMonth' => $card_details['exp_month'],
+          'ExpirationYear' => substr($card_details['exp_year'], -2),
+          'CVV' => $card_details['code']
+        ];
+      }
+      // if (0) {
+      //   $request_body['Token'] = array();
+      // }
+      break;
+    case VANTIV_INTEGRATION_EPROTECT:
+      // @todo: Support payment add form: commerce_payment_order_transaction_add_form.
+      $form_values = isset($_POST['payment_details']) ? $_POST['payment_details'] : $_POST['commerce_payment']['payment_details'];
+      $request_body['Card'] = [
+        'Type' => $form_values['response$type'],
+        'PaypageRegistrationID' => $form_values['response$paypageRegistrationId'],
+        'ExpirationMonth' => $card_details['exp_month'],
+        'ExpirationYear' => substr($card_details['exp_year'], -2),
+//        'CardNumber' => $card_details['number'],
+//        'CVV' => $card_details['code']
+      ];
+      break;
+    case VANTIV_INTEGRATION_IFRAME:
+      // @todo
+      break;
+  }
+
+  // Send request.
+  $response = $request->send($request_body);
+
+  // Remove CVV and mask all but last 4 of card number.
+  if ($integration_type == VANTIV_INTEGRATION_LOCAL && ($request_body['Card'])) {
+    $number = $request_body['Card']['CardNumber'];
+    $request_body['Card']['CardNumber'] = '...' . substr($number, -4);
+    unset($request_body['Card']['CVV']);
+  }
+
+  // Get response details.
+  $request_id = $response['response']->getRequestID();
+  $response_body = $response['response']->getResponse();
+  $response_code = $response['http_code'];
+
+  // Create a payment transaction.
   $transaction = commerce_payment_transaction_new('commerce_vantiv_creditcard', $order->order_id);
+  $log = [];
+  if ($payment_method['settings']['log']['request']) {
+    $log['request'] = [
+      'type' => get_class($request),
+      'body' => $request_body
+    ];
+  }
+  else {
+    $log['request'] = t('Logging not enabled for requests. Enable at @url', [
+      '@url' => 'admin/commerce/config/payment-methods'
+    ]);
+  }
+  if ($payment_method['settings']['log']['response']) {
+    $log['response'] = [
+      'type' => get_class($response['response']),
+      'body' => $response_body
+    ];
+  }
+  else {
+    $log['response'] = t('Logging not enabled for responses. Enable at @url', [
+      '@url' => 'admin/commerce/config/payment-methods'
+    ]);
+  }
+  $transaction->payload[$request_id] = $log;
+  if ($response_code !== 200) {
+    $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
+  }
+  else {
+    switch ($txn_type) {
+      case COMMERCE_CREDIT_AUTH_CAPTURE:
+        $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+        break;
+      case COMMERCE_CREDIT_AUTH_ONLY:
+        $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
+        break;
+    }
+  }
   $transaction->instance_id = $payment_method['instance_id'];
+  $transaction->remote_id = $response_body->TransactionID;
+  $transaction->remote_status = $response_body->message;
+  $transaction->message = $transaction->status;
   $transaction->amount = $charge['amount'];
   $transaction->currency_code = $charge['currency_code'];
-  $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
-
-  $transaction->message = 'Number: @number<br/>Expiration: @month/@year';
-  $transaction->message_variables = array(
-    '@number' => $card_details['number'],
-    '@month' => $card_details['exp_month'],
-    '@year' => $card_details['exp_year'],
-  );
-
   commerce_payment_transaction_save($transaction);
+
   return $transaction;
 }
+
+/**
+ * Returns list of Vantiv supported credit card type codes keyed by Commerce
+ * Payment card type codes.
+ */
+function _commerce_vantiv_creditcard_types() {
+  $commerce_types = commerce_payment_credit_card_types();
+  $commerce_types['amex'] = 'AX';
+  $commerce_types['dci'] = 'DC'; // (International. supported?)
+  $commerce_types['dc'] = 'DC';
+  $commerce_types['discover'] = 'DI';
+  $commerce_types['jcb'] = 'JC';
+  $commerce_types['mastercard'] = 'MC';
+  $commerce_types['visa'] = 'VI';
+  // Carte Blanche cards not supported.
+  unset($commerce_types['cb']);
+
+  return $commerce_types;
+}
+
+/**
+ * Formats a price for a particular currency, in a Vantiv acceptable format.
+ *
+ * @see commmerce_currency_format(), the function from which this is adapted.
+ *
+ * @param $amount
+ *   A numeric price amount value.
+ * @param $currency_code
+ *   The three character code of the currency.
+ * @param $object
+ *   When present, the object to which the price is attached.
+ * @param $convert
+ *   Boolean indicating whether or not the amount needs to be converted to a
+ *   decimal price amount when formatting.
+ *
+ * @return string
+ *   A fully formatted currency acceptable by Vantiv's API.
+ */
+function commerce_vantiv_creditcard_amount_to_decimal($amount, $currency_code) {
+  return number_format(commerce_currency_amount_to_decimal($amount, $currency_code), 2, '.', '');
+}
+
+/**
+ * Returns the number of seconds for a lifespan of a card payment authorization.
+ *
+ * @param string $card_type Vantiv card type code, one of:
+ *   - AX (American Express)
+ *   - DC (Discover)
+ *   - MC (MasterCard)
+ *   - VI (Visa)
+ *
+ * @return int
+ *   Number of seconds of the lifespan of a credit card payment authorization,
+ *   will return the equivalent of 7 days if a supported card type doesn't match.
+ */
+function _commerce_vantiv_creditcard_authorization_lifespan($card_type) {
+  $spans = [
+    'AX' => 7,
+    'DI' => 10,
+    'MC' => 7,
+    'VI' => 7,
+  ];
+  $default = 7 * 86400;
+  return isset($spans[$card_type]) ? $spans[$card_type] * 86400 : $default;
+}
+
+/**
+ * Returns the Vantiv license value from the payment method settings.
+ *
+ * @param array $payment_method
+ *
+ * @return string
+ */
+function _commerce_vantiv_creditcard_get_license($payment_method) {
+  return $payment_method['settings']['license'];
+}
+
+/**
+ * Returns the Vantiv api version from the payment method settings.
+ *
+ * @param array $payment_method
+ *
+ * @return string
+ */
+function _commerce_vantiv_creditcard_get_api_version($payment_method) {
+  return 1;
+}
+
+/**
+ * Returns the Vantiv base url from the payment method settings.
+ *
+ * @param array $payment_method
+ *
+ * @return string
+ */
+function _commerce_vantiv_creditcard_get_base_url($payment_method) {
+  $urls = [
+    VANTIV_TXN_MODE_PRODUCTION => 'https://apis.prod.vantiv.com/',
+    VANTIV_TXN_MODE_INTEGRATION => 'https://apis.cert.vantiv.com',
+  ];
+  return $urls[$payment_method['settings']['txn_mode']];
+}
+
+/**
+ * Returns the merchant id from the payment method settings.
+ *
+ * @param array $payment_method
+ *
+ * @return string
+ */
+function _commerce_vantiv_creditcard_get_merchant_id($payment_method) {
+  return $payment_method['settings']['merchant_id'];
+}
+
+/**
+ * Returns the report group from the payment method settings.
+ *
+ * @param array $payment_method
+ * @param stdClass $order
+ *
+ * @return string
+ */
+function _commerce_vantiv_creditcard_get_report_group($payment_method, $order) {
+  // @todo: Invoke hook to let modules update report group.
+  return $payment_method['settings']['report_group'];
+}
+
