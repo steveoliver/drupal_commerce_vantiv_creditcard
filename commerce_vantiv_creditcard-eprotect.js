@@ -21,6 +21,9 @@
         var vantivSettings = settings.vantiv;
 
         var submitButtonID = vantivSettings.checkout_pane ? '#commerce-checkout-form-review #edit-continue' : '#commerce-payment-order-transaction-add-form--2 #edit-submit';
+        if (vantivSettings.cardonfile_form) {
+          submitButtonID = '#commerce-vantiv-creditcard-cardonfile-create-form #edit-submit';
+        }
 
         $('body').delegate(submitButtonID, 'click', function(event) {
           if (!callLitle()) {
@@ -51,6 +54,14 @@
             var formFields = {
               "accountNum": document.getElementById("edit-payment-details-credit-card-number"),
               "cvv2": document.getElementById("edit-payment-details-credit-card-code"),
+              "paypageRegistrationId": document.getElementById("response$paypageRegistrationId"),
+              "bin": document.getElementById("response$bin")
+            };
+          }
+          else if (vantivSettings.cardonfile_form) {
+            var formFields = {
+              "accountNum": document.getElementById("edit-credit-card-number"),
+              "cvv2": document.getElementById("edit-credit-card-code"),
               "paypageRegistrationId": document.getElementById("response$paypageRegistrationId"),
               "bin": document.getElementById("response$bin")
             };
