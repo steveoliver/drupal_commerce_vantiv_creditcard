@@ -496,7 +496,10 @@ function commerce_vantiv_creditcard_submit_form_submit($payment_method, $pane_fo
       return FALSE;
     }
 
-    return commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_data, $order, $charge);
+    if (!commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_data, $order, $charge)) {
+      return FALSE;
+    }
+    return TRUE;
   }
 
   // Just as an example, we might store information in the order object from the
@@ -724,6 +727,47 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
 }
 
 /**
+ * Implements hook_commerce_cardonfile_checkout_pane_form_alter().
+ *
+ * Adds a CVV field to the cardonfile form.
+ */
+function commerce_vantiv_creditcard_commerce_cardonfile_checkout_pane_form_alter(&$form, &$parent_form) {
+  // Do not attach field if (new) credit card form is visible.
+  if (isset($parent_form['commerce_payment']['payment_details']) && (!isset($parent_form['commerce_payment']['payment_details']['credit_card']['#access']) || $parent_form['commerce_payment']['payment_details']['credit_card']['#access'] != FALSE)) {
+    return;
+  }
+
+  // Do not attach if payment method information is unavailable.
+  if (!isset($parent_form['commerce_payment']) || !isset($parent_form['commerce_payment']['payment_method']) || !isset($parent_form['commerce_payment']['payment_method']['#default_value'])) {
+    return;
+  }
+
+  // Get payment method information.
+  list($payment_method_id) = explode('|', $parent_form['commerce_payment']['payment_method']['#default_value']);
+  $payment_method = commerce_payment_method_load($payment_method_id);
+
+  // Exit if payment method is not capable of Card on File, or Card on File
+  // functionality is disabled in the payment method instance.
+  if (!_commerce_cardonfile_capable_payment_method_check($payment_method) || (isset($payment_method['settings']['cardonfile']) && !$payment_method['settings']['cardonfile'])) {
+    return;
+  }
+
+  if ($payment_method_id == 'commerce_vantiv_creditcard' && $parent_form['commerce_payment']['payment_details']['credit_card']['#access'] == FALSE) {
+
+    // Add CVV field for each card on file charge form instance.
+    $form['code'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Security code'),
+      '#default_value' => '',
+      '#attributes' => array('autocomplete' => 'off'),
+      '#required' => FALSE,
+      '#maxlength' => 4,
+      '#size' => 4,
+    );
+  }
+}
+
+/**
  * Creates a payment transaction for the specified method, order, and charge.
  *
  * @param $payment_method
@@ -774,7 +818,13 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
       'ApplicationID' => $order->order_id . $txn_type
     ],
     'PaymentAccount' => [
-      'PaymentAccountID' => $card_data->remote_id
+      'PaymentAccountID' => $card_data->remote_id,
+    ],
+    'Card' => [
+      'ExpirationMonth' => str_pad($card_data->card_exp_month, 2, '0', STR_PAD_LEFT),
+      'ExpirationYear' => substr($card_data->card_exp_year, -2),
+      // POSTed from commerce_vantiv_creditcard_commerce_cardonfile_checkout_pane_form_alter().
+      'CVV' => $_POST['commerce_payment']['payment_details']['code']
     ]
   ];
 
@@ -818,7 +868,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
     ]);
   }
   $transaction->payload[$request_id] = $log;
-  if ($response_code !== 200) {
+  if ($response_code !== 200 || empty($response_body) || !in_array($response_body->response, [000, 001, 010])) {
     $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
   }
   else {
@@ -838,6 +888,11 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
   $transaction->amount = $charge['amount'];
   $transaction->currency_code = $charge['currency_code'];
   commerce_payment_transaction_save($transaction);
+
+  if ($transaction->status == COMMERCE_PAYMENT_STATUS_FAILURE) {
+    drupal_set_message(t('Could not process payment. Please try again or contact the site administrator.'), 'error');
+    return FALSE;
+  }
 
   return $transaction;
 }
@@ -980,8 +1035,11 @@ function commerce_vantiv_creditcard_cardonfile_create($form, &$form_state, $paym
     unset($request_body['Card']['CVV']);
   }
 
-  if ($response_code != 200) {
-    watchdog('commerce_vantiv_creditcard', 'Could not create card on file. No token response.', [], WATCHDOG_ERROR);
+  if (!in_array($response_body->response, ['000', '001', '010'])) {
+    watchdog('commerce_vantiv_creditcard', 'Could not create card ending in @number (@msgid)', [
+      '@number' => substr($card_data->card_number, -4),
+      '@msgid' => $request_id
+    ]);
     return FALSE;
   }
 
