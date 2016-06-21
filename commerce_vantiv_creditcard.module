@@ -183,7 +183,7 @@ function commerce_vantiv_creditcard_capture_access($order, $transaction) {
  * @param $order
  *   The order the transaction is on.
  * @param $transaction
- *   The payment transaction object to be captured.
+ *   The payment transaction object to be credited.
  *
  * @return bool
  *   TRUE or FALSE indicating credit access.
@@ -192,7 +192,7 @@ function commerce_vantiv_creditcard_credit_access($order, $transaction) {
   // Return FALSE if the transaction isn't for Vantiv Credit Card, isn't
   // an auth completion or sale transaction.
   if ($transaction->payment_method != 'commerce_vantiv_creditcard' || empty($transaction->remote_id) ||
-    !in_array($transaction->remote_status, [ COMMERCE_CREDIT_CAPTURE_ONLY, COMMERCE_CREDIT_AUTH_CAPTURE])) {
+    !in_array($transaction->remote_status, [COMMERCE_CREDIT_CAPTURE_ONLY, COMMERCE_CREDIT_AUTH_CAPTURE])) {
     return FALSE;
   }
 
