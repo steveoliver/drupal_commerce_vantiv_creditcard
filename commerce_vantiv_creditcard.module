@@ -647,11 +647,12 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
   ]);
 
   // Initialize request.
-  if ($txn_type == COMMERCE_CREDIT_CAPTURE_ONLY) {
-    $request = new Vantiv\Request\Credit\Sale($config);
-  }
-  else if ($txn_type == COMMERCE_CREDIT_AUTH_ONLY) {
+  // 0-amount orders must be Authorizations, not Sales.
+  if ($txn_type == COMMERCE_CREDIT_AUTH_ONLY || $charge['amount'] == 0) {
     $request = new Vantiv\Request\Credit\Authorization($config);
+  }
+  else if ($txn_type == COMMERCE_CREDIT_CAPTURE_ONLY) {
+    $request = new Vantiv\Request\Credit\Sale($config);
   }
 
   // Build request body from order and payment details.
@@ -874,11 +875,12 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
   ]);
 
   // Initialize request.
-  if ($txn_type == COMMERCE_CREDIT_CAPTURE_ONLY) {
-    $request = new Vantiv\Request\Credit\Sale($config);
-  }
-  else if ($txn_type == COMMERCE_CREDIT_AUTH_ONLY) {
+  // 0-amount orders must be Authorizations, not Sales.
+  if ($txn_type == COMMERCE_CREDIT_AUTH_ONLY || $charge['amount'] == 0) {
     $request = new Vantiv\Request\Credit\Authorization($config);
+  }
+  else if ($txn_type == COMMERCE_CREDIT_CAPTURE_ONLY) {
+    $request = new Vantiv\Request\Credit\Sale($config);
   }
 
   // Build request body from order and payment details.
