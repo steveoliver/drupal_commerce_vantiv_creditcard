@@ -906,10 +906,13 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
     'Card' => [
       'ExpirationMonth' => str_pad($card_data->card_exp_month, 2, '0', STR_PAD_LEFT),
       'ExpirationYear' => substr($card_data->card_exp_year, -2),
-      // POSTed from commerce_vantiv_creditcard_commerce_cardonfile_checkout_pane_form_alter().
-      'CVV' => $_POST['commerce_payment']['payment_details']['code']
     ]
   ];
+
+  if (!empty($_POST['commerce_payment']) && !empty($_POST['commerce_payment']['payment_details']) && !empty($_POST['commerce_payment']['payment_details']['code'])) {
+    // POSTed from commerce_vantiv_creditcard_commerce_cardonfile_checkout_pane_form_alter().
+    $request_body['Card']['CVV'] = $_POST['commerce_payment']['payment_details']['code'];
+  }
 
   // Initialize a payment transaction to give us a new unique transaction id.
   // Vantiv requests should all contain a unique ApplicationID.
