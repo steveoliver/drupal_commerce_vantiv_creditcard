@@ -363,6 +363,7 @@ function commerce_vantiv_creditcard_submit_form($payment_method, $pane_values, $
   $form = _commerce_vantiv_creditcard_submit_form_common($payment_method);
 
   $js_settings = [
+    'cardonfile_form' => FALSE,
     'checkout_pane' => isset($checkout_pane),
     'payment_pane' => !isset($checkout_pane),
   ];
@@ -385,6 +386,7 @@ function commerce_vantiv_creditcard_submit_form($payment_method, $pane_values, $
   }
 
   drupal_add_js(['vantiv' => $js_settings], 'setting');
+
   return $form;
 }
 
@@ -392,9 +394,6 @@ function commerce_vantiv_creditcard_submit_form($payment_method, $pane_values, $
  * Generates common form elements for all Vantiv credit card payment forms.
  *
  * @param array $payment_method
- * @param array $pane_values
- * @param array $checkout_pane
- * @param stdClass $order
  *
  * @return array Forms API array.
  */
@@ -415,6 +414,13 @@ function _commerce_vantiv_creditcard_submit_form_common($payment_method) {
   return $form;
 }
 
+/**
+ * Modify the credit card submit form for the local integration mode.
+ *
+ * @param array $form
+ * @param array $payment_method
+ * @param stdClass $order
+ */
 function _commerce_vantiv_creditcard_submit_form_local(&$form, $payment_method, $order) {
 }
 
@@ -423,19 +429,15 @@ function _commerce_vantiv_creditcard_submit_form_local(&$form, $payment_method, 
  *
  * @param array $form Common credit card form.
  * @param array $payment_method
- * @param array $pane_values
- * @param array $checkout_pane
  * @param stdClass $order
  */
 function _commerce_vantiv_creditcard_submit_form_eprotect(&$form, $payment_method, $order) {
 
   $order = isset($order) ? $order : new stdClass();
 
-  // Add a css class so that we can easily identify Vantiv related input fields
-  // Do not require the fields
-  //
-  // Remove "name" attributes from Vantiv related input elements to
-  // prevent card data to be sent to Drupal server.
+  // Add a css class so that we can easily identify Vantiv related input fields;
+  // Do not require the fields; Remove "name" attributes from Vantiv related
+  // input elements to prevent card data to be sent to Drupal server.
   $credit_card_fields = ['number', 'code'];
   foreach ($credit_card_fields as $key) {
     $credit_card_field = &$form['credit_card'][$key];
@@ -444,7 +446,7 @@ function _commerce_vantiv_creditcard_submit_form_eprotect(&$form, $payment_metho
     $credit_card_field['#post_render'][] = '_commerce_vantiv_creditcard_form_remove_name_element';
   }
 
-  // Add authorization and request fields.
+  // Add hidden authorization and request fields.
   $form['request$paypageId'] = [
     '#type' => 'hidden',
     '#attributes' => ['id' => 'request$paypageId'],
@@ -487,12 +489,11 @@ function _commerce_vantiv_creditcard_submit_form_eprotect(&$form, $payment_metho
     ];
   }
 
+  // Add API and client JS to form.
   // Initialize JS attachments if necessary.
   if (empty($form['#attached']) || empty($form['#attached']['js'])) {
     $form['#attached']['js'] = [];
   }
-  // Add API and client JS to form.
-  // @todo: Change JS based on payment_method.settings.txn_mode.
   $form['#attached']['js']['https://request-prelive.np-securepaypage-litle.com/LitlePayPage/litle-api2.js'] = [
     'type' => 'external',
     'scope' => 'footer'
@@ -504,7 +505,7 @@ function _commerce_vantiv_creditcard_submit_form_eprotect(&$form, $payment_metho
 }
 
 /**
- * Removes 'name' attribute from Vantiv eProtect form elements
+ * Removes 'name' attribute from Vantiv eProtect form elements.
  */
 function _commerce_vantiv_creditcard_form_remove_name_element($content, $element) {
   $name_pattern = '/\sname\s*=\s*[\'"]?' . preg_quote($element['#name']) . '[\'"]?/';
@@ -605,6 +606,9 @@ function commerce_vantiv_creditcard_submit_form_submit($payment_method, $pane_fo
  *   The order object the payment applies to.
  * @param $charge
  *   An array indicating the amount and currency code to charge.
+ *
+ * @return mixed
+ *   COMMERCE_PAYMENT_STATUS_SUCCESS, or FALSE if charge failed.
  */
 function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, $order, $charge) {
   if (!commerce_vantiv_creditcard_load_library()) {
@@ -854,6 +858,9 @@ function commerce_vantiv_creditcard_commerce_cardonfile_checkout_pane_form_alter
  *   The order object the payment applies to.
  * @param $charge
  *   An array indicating the amount and currency code to charge.
+ *
+ * @return mixed
+ *   COMMERCE_PAYMENT_STATUS_SUCCESS, or FALSE if charge failed.
  */
 function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_data, $order, $charge) {
   if (!commerce_vantiv_creditcard_load_library()) {
@@ -901,8 +908,9 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
     ]
   ];
 
+  // Add CVV if found in POST values.
+  // POSTed from commerce_vantiv_creditcard_commerce_cardonfile_checkout_pane_form_alter().
   if (!empty($_POST['commerce_payment']) && !empty($_POST['commerce_payment']['payment_details']) && !empty($_POST['commerce_payment']['payment_details']['code'])) {
-    // POSTed from commerce_vantiv_creditcard_commerce_cardonfile_checkout_pane_form_alter().
     $request_body['Card']['CVV'] = $_POST['commerce_payment']['payment_details']['code'];
   }
 
@@ -976,7 +984,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
 }
 
 /**
- * Card on file callback: create form
+ * Card on file callback: create form.
  */
 function commerce_vantiv_creditcard_cardonfile_create_form($form, &$form_state, $op, $card_data) {
   // Pass along information to the validate and submit handlers.
@@ -1042,7 +1050,7 @@ function commerce_vantiv_creditcard_cardonfile_create_form_submit($form, &$form_
 }
 
 /**
- * Card on file callback: create
+ * Card on file callback: create.
  */
 function commerce_vantiv_creditcard_cardonfile_create($form, &$form_state, $payment_method, $card_data) {
   if (!commerce_vantiv_creditcard_load_library()) {
@@ -1225,11 +1233,6 @@ function _commerce_vantiv_creditcard_types() {
  *   A numeric price amount value.
  * @param $currency_code
  *   The three character code of the currency.
- * @param $object
- *   When present, the object to which the price is attached.
- * @param $convert
- *   Boolean indicating whether or not the amount needs to be converted to a
- *   decimal price amount when formatting.
  *
  * @return string
  *   A fully formatted currency acceptable by Vantiv's API.
@@ -1296,6 +1299,7 @@ function _commerce_vantiv_creditcard_get_license($payment_method) {
  * @return string
  */
 function _commerce_vantiv_creditcard_get_api_version($payment_method) {
+  // @todo Get api version from settings when there is more than '1' version.
   return 1;
 }
 
