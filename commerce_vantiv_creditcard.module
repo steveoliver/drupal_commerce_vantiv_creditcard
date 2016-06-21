@@ -138,6 +138,18 @@ function commerce_vantiv_creditcard_menu() {
     'weight' => 2,
     'file' => 'commerce_vantiv_creditcard.admin.inc',
   );
+  // Add a menu item for processing voids.
+  $items['admin/commerce/orders/%commerce_order/payment/%commerce_payment_transaction/vantiv-creditcard-void'] = array(
+    'title' => 'Void',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('commerce_vantiv_creditcard_void_form', 3, 5),
+    'access callback' => 'commerce_vantiv_creditcard_void_access',
+    'access arguments' => array(3, 5),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'context' => MENU_CONTEXT_INLINE,
+    'weight' => 2,
+    'file' => 'commerce_vantiv_creditcard.admin.inc',
+  );
 
   return $items;
 }
@@ -193,6 +205,34 @@ function commerce_vantiv_creditcard_credit_access($order, $transaction) {
   // an auth completion or sale transaction.
   if ($transaction->payment_method != 'commerce_vantiv_creditcard' || empty($transaction->remote_id) ||
     !in_array($transaction->remote_status, [COMMERCE_CREDIT_CAPTURE_ONLY, COMMERCE_CREDIT_AUTH_CAPTURE])) {
+    return FALSE;
+  }
+
+  // Return FALSE if transaction is a failure.
+  if ($transaction->status == COMMERCE_PAYMENT_STATUS_FAILURE) {
+    return FALSE;
+  }
+
+  // Allow access if the user can update this transaction.
+  return commerce_payment_transaction_access('update', $transaction);
+}
+
+/**
+ * Determines access to the void transaction form for Vantiv credit transactions.
+ *
+ * @param $order
+ *   The order the transaction is on.
+ * @param $transaction
+ *   The credit transaction object to be voided.
+ *
+ * @return bool
+ *   TRUE or FALSE indicating void access.
+ */
+function commerce_vantiv_creditcard_void_access($order, $transaction) {
+  // Return FALSE if the transaction isn't for Vantiv Credit Card, isn't
+  // a credit transaction.
+  if ($transaction->payment_method != 'commerce_vantiv_creditcard' || empty($transaction->remote_id) ||
+    !in_array($transaction->remote_status, [COMMERCE_CREDIT_AUTH_CAPTURE, COMMERCE_CREDIT_CAPTURE_ONLY, COMMERCE_CREDIT_CREDIT])) {
     return FALSE;
   }
 
