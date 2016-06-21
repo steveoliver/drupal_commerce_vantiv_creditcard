@@ -805,7 +805,7 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
     }
   }
 
-  return $transaction;
+  return COMMERCE_PAYMENT_STATUS_SUCCESS;
 }
 
 /**
@@ -977,7 +977,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
     return FALSE;
   }
 
-  return $transaction;
+  return COMMERCE_PAYMENT_STATUS_SUCCESS;
 }
 
 /**
