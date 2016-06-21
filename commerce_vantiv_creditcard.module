@@ -175,7 +175,7 @@ function _commerce_vantiv_creditcard_default_settings() {
     'report_group' => '',
     'integration_type' => VANTIV_INTEGRATION_LOCAL,
     'txn_mode' => VANTIV_TXN_MODE_INTEGRATION,
-    'txn_type' => COMMERCE_CREDIT_AUTH_CAPTURE,
+    'txn_type' => COMMERCE_CREDIT_CAPTURE_ONLY,
     'cardonfile' => 0,
     'log' => ['request' => 0, 'response' => 0]
   ];
@@ -242,7 +242,7 @@ function commerce_vantiv_creditcard_settings_form($settings = NULL) {
     '#title' => t('Default credit card transaction type'),
     '#description' => t('The default will be used to process transactions during checkout.'),
     '#options' => [
-      COMMERCE_CREDIT_AUTH_CAPTURE => t('Authorization and capture'),
+      COMMERCE_CREDIT_CAPTURE_ONLY => t('Sale (Authorization and capture)'),
       COMMERCE_CREDIT_AUTH_ONLY => t('Authorization only (requires manual or automated capture after checkout)'),
     ],
     '#default_value' => $settings['txn_type']
@@ -566,7 +566,7 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
   ]);
 
   // Initialize request.
-  if ($txn_type == COMMERCE_CREDIT_AUTH_CAPTURE) {
+  if ($txn_type == COMMERCE_CREDIT_CAPTURE_ONLY) {
     $request = new Vantiv\Request\Credit\Sale($config);
   }
   else if ($txn_type == COMMERCE_CREDIT_AUTH_ONLY) {
@@ -688,7 +688,7 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
   }
   else {
     switch ($txn_type) {
-      case COMMERCE_CREDIT_AUTH_CAPTURE:
+      case COMMERCE_CREDIT_CAPTURE_ONLY:
         $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
         break;
       case COMMERCE_CREDIT_AUTH_ONLY:
@@ -793,7 +793,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
   ]);
 
   // Initialize request.
-  if ($txn_type == COMMERCE_CREDIT_AUTH_CAPTURE) {
+  if ($txn_type == COMMERCE_CREDIT_CAPTURE_ONLY) {
     $request = new Vantiv\Request\Credit\Sale($config);
   }
   else if ($txn_type == COMMERCE_CREDIT_AUTH_ONLY) {
@@ -873,7 +873,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
   }
   else {
     switch ($txn_type) {
-      case COMMERCE_CREDIT_AUTH_CAPTURE:
+      case COMMERCE_CREDIT_CAPTURE_ONLY:
         $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
         break;
       case COMMERCE_CREDIT_AUTH_ONLY:

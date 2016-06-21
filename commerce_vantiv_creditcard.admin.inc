@@ -150,7 +150,7 @@ function commerce_vantiv_creditcard_capture_form_submit($form, &$form_state) {
   $transaction->payload[$request_id] = $log;
 
   // If we didn't get an approval response code...
-  if ($response_code !== 200) {
+  if ($response_code !== 200 || !in_array($response_body->response, [000, 001, 010])) {
     // Display an error message but leave the transaction pending.
     drupal_set_message(t('Prior authorization capture failed, so the transaction will remain in a pending status.'), 'error');
     drupal_set_message(check_plain($response_body['message']), 'error');
@@ -163,7 +163,10 @@ function commerce_vantiv_creditcard_capture_form_submit($form, &$form_state) {
 
     // Set the remote and local status accordingly.
     $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
-    $transaction->remote_status = $response_body->message;
+    $transaction->remote_status = COMMERCE_CREDIT_AUTH_CAPTURE;
+
+    // Set the remote id to the capture response transaction id.
+    $transaction->remote_id = $response_body->TransactionID;
 
     // Add status and capture date to the result message.
     $transaction->message = implode('<br />', [
