@@ -182,3 +182,135 @@ function commerce_vantiv_creditcard_capture_form_submit($form, &$form_state) {
 
   $form_state['redirect'] = 'admin/commerce/orders/' . $form_state['order']->order_id . '/payment';
 }
+
+/**
+ * Form callback: allows the user to credit a prior auth completion or sale.
+ */
+function commerce_vantiv_creditcard_credit_form($form, &$form_state, $order, $transaction) {
+  $form_state['order'] = $order;
+  $form_state['transaction'] = $transaction;
+
+  // Load and store the payment method instance for this transaction.
+  $payment_method = commerce_payment_method_instance_load($transaction->instance_id);
+  $form_state['payment_method'] = $payment_method;
+
+  // Convert the price amount to a user friendly decimal value.
+  $amount = commerce_vantiv_creditcard_amount_to_decimal($transaction->amount, $transaction->currency_code);
+
+  $form = confirm_form($form,
+    t('Credit the order for the full amount (@amount)?', [
+      '@amount' => $amount . ' ' . check_plain($transaction->currency_code)
+    ]),
+    'admin/commerce/orders/' . $order->order_id . '/payment',
+    '',
+    t('Credit'),
+    t('Cancel'),
+    'confirm'
+  );
+
+  return $form;
+}
+
+/**
+ * Submit handler: process a credit transaction.
+ */
+function commerce_vantiv_creditcard_credit_form_submit($form, &$form_state) {
+  $transaction = $form_state['transaction'];
+  $payment_method = $form_state['payment_method'];
+  $order = $form_state['order'];
+  if (!commerce_vantiv_creditcard_load_library()) {
+    return FALSE;
+  }
+
+  // Initialize configuration.
+  $config = new Vantiv\Configuration([
+    'license' => _commerce_vantiv_creditcard_get_license($payment_method),
+    'api_version' => _commerce_vantiv_creditcard_get_api_version($payment_method),
+    'base_url' => _commerce_vantiv_creditcard_get_base_url($payment_method)
+  ]);
+  // Initialize request.
+  $request = new Vantiv\Request\Credit\Credit($config);
+  $request_body = [
+    'Credentials' => [
+      'AcceptorID' => _commerce_vantiv_creditcard_get_merchant_id($payment_method)
+    ],
+    'Reports' => [
+      'ReportGroup' => _commerce_vantiv_creditcard_get_report_group($payment_method, $order)
+    ],
+    'Transaction' => [
+      'TransactionID' => $transaction->remote_id,
+    ],
+    'Application' => [
+      'ApplicationID' => $order->order_id . 'credit'
+    ],
+  ];
+
+  // Initialize a transaction to give us a new unique transaction id.
+  // Vantiv requests should all contain a unique ApplicationID.
+  $credit_transaction = commerce_payment_transaction_new($transaction->payment_method, $order->order_id);
+  $credit_transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
+  commerce_payment_transaction_save($credit_transaction);
+  $request_body['Application']['ApplicationID'] .= $credit_transaction->transaction_id;
+
+  // Perform request and prepare response.
+  $response = $request->send($request_body);
+  $response_body = $response['response']->getResponse();
+  $request_id = $response['response']->getRequestID();
+  $response_code = $response['http_code'];
+
+  // Update and save the transaction based on the response.
+  $log = [];
+  if ($payment_method['settings']['log']['request']) {
+    $log['request'] = [
+      'type' => get_class($request),
+      'body' => $request_body
+    ];
+  }
+  else {
+    $log['request'] = t('Logging not enabled for requests. Enable at @url', [
+      '@url' => 'admin/commerce/config/payment-methods'
+    ]);
+  }
+  if ($payment_method['settings']['log']['response']) {
+    $log['response'] = [
+      'type' => get_class($response['response']),
+      'body' => $response_body
+    ];
+  }
+  else {
+    $log['response'] = t('Logging not enabled for responses. Enable at @url', [
+      '@url' => 'admin/commerce/config/payment-methods'
+    ]);
+  }
+  $credit_transaction->payload[$request_id] = $log;
+
+  // If we didn't get an approval response code...
+  if ($response_code !== 200 || !in_array($response_body->response, [000, 001, 010])) {
+    // Display an error message but leave the transaction pending.
+    drupal_set_message(t('Credit failed.'), 'error');
+    drupal_set_message(check_plain($response_body['message']), 'error');
+  }
+  else {
+    drupal_set_message(t('Credit processed successfully.'));
+
+    // Save the credit amount as a negative integer.
+    $credit_transaction->amount = $transaction->amount * -1;
+
+    $credit_transaction->currency_code = $transaction->currency_code;
+    $credit_transaction->instance_id = $payment_method['instance_id'];
+    $credit_transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+    $credit_transaction->remote_status = COMMERCE_CREDIT_CREDIT;
+    $credit_transaction->remote_id = $response_body->TransactionID;
+    $credit_transaction->message = implode('<br />', [
+      $credit_transaction->status,
+      t('Credited: @amount, @date', [
+        '@amount' => commerce_vantiv_creditcard_amount_to_decimal($credit_transaction->amount, $credit_transaction->currency_code),
+        '@date' => format_date(REQUEST_TIME, 'short')
+      ])
+    ]);
+  }
+
+  commerce_payment_transaction_save($credit_transaction);
+
+  $form_state['redirect'] = 'admin/commerce/orders/' . $form_state['order']->order_id . '/payment';
+}
