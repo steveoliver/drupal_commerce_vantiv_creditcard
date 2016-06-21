@@ -640,11 +640,7 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
   ];
 
   // Initialize configuration.
-  $config = new Vantiv\Configuration([
-    'license' => _commerce_vantiv_creditcard_get_license($payment_method),
-    'api_version' => _commerce_vantiv_creditcard_get_api_version($payment_method),
-    'base_url' => _commerce_vantiv_creditcard_get_base_url($payment_method)
-  ]);
+  $config = _commerce_vantiv_creditcard_get_config($payment_method);
 
   // Initialize request.
   // 0-amount orders must be Authorizations, not Sales.
@@ -868,11 +864,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
   $txn_type = $payment_method['settings']['txn_type'];
 
   // Initialize configuration.
-  $config = new Vantiv\Configuration([
-    'license' => _commerce_vantiv_creditcard_get_license($payment_method),
-    'api_version' => _commerce_vantiv_creditcard_get_api_version($payment_method),
-    'base_url' => _commerce_vantiv_creditcard_get_base_url($payment_method)
-  ]);
+  $config = _commerce_vantiv_creditcard_get_config($payment_method);
 
   // Initialize request.
   // 0-amount orders must be Authorizations, not Sales.
@@ -1063,11 +1055,7 @@ function commerce_vantiv_creditcard_cardonfile_create($form, &$form_state, $paym
   $form_values = $form_state['input'];
 
   // Initialize configuration.
-  $config = new Vantiv\Configuration([
-    'license' => _commerce_vantiv_creditcard_get_license($payment_method),
-    'api_version' => _commerce_vantiv_creditcard_get_api_version($payment_method),
-    'base_url' => _commerce_vantiv_creditcard_get_base_url($payment_method)
-  ]);
+  $config = _commerce_vantiv_creditcard_get_config($payment_method);
 
   // Initialize request.
   $request = new Vantiv\Request\Services\PaymentAccountCreate($config);
@@ -1272,6 +1260,21 @@ function _commerce_vantiv_creditcard_authorization_lifespan($card_type) {
   ];
   $default = 7 * 86400;
   return isset($spans[$card_type]) ? $spans[$card_type] * 86400 : $default;
+}
+
+/**
+ * Returns a Vantiv Configuration object for Vantiv API requests.
+ *
+ * @param array $payment_method Payment method information.
+ *
+ * @return \Vantiv\Configuration
+ */
+function _commerce_vantiv_creditcard_get_config($payment_method) {
+  return new Vantiv\Configuration([
+    'license' => _commerce_vantiv_creditcard_get_license($payment_method),
+    'api_version' => _commerce_vantiv_creditcard_get_api_version($payment_method),
+    'base_url' => _commerce_vantiv_creditcard_get_base_url($payment_method)
+  ]);
 }
 
 /**
