@@ -1121,7 +1121,7 @@ function commerce_vantiv_creditcard_cardonfile_create($form, &$form_state, $paym
     unset($request_body['Card']['CVV']);
   }
 
-  if (!in_array($response_body->response, ['000', '001', '010'])) {
+  if ($response_code != 200 || !in_array($response_body->response, ['000', '001', '010'])) {
     watchdog('commerce_vantiv_creditcard', 'Could not create card ending in @number (@msgid)', [
       '@number' => substr($card_data->card_number, -4),
       '@msgid' => $request_id
