@@ -180,7 +180,7 @@ function commerce_vantiv_creditcard_capture_access($order, $transaction) {
   }
 
   // Return FALSE if it is more than 30 days past the original authorization.
-  if (time() - $transaction->created > _commerce_vantiv_creditcard_authorization_lifespan($transaction->data['card_type'])) {
+  if (!empty($transaction->data['card_type']) && time() - $transaction->created > _commerce_vantiv_creditcard_authorization_lifespan($transaction->data['card_type'])) {
     return FALSE;
   }
 

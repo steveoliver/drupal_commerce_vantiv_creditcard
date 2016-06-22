@@ -60,7 +60,7 @@ function commerce_vantiv_creditcard_capture_form($form, &$form_state, $order, $t
 function commerce_vantiv_creditcard_capture_form_validate($form, &$form_state) {
   $transaction = $form_state['transaction'];
   $amount = $form_state['values']['amount'];
-  $card_type = $transaction->data['card_type'];
+  $card_type = !empty($transaction->data['card_type']) ? $transaction->data['card_type'] : FALSE;
 
   // Ensure a positive numeric amount has been entered for capture.
   if (!is_numeric($amount) || $amount <= 0) {
@@ -73,7 +73,7 @@ function commerce_vantiv_creditcard_capture_form_validate($form, &$form_state) {
   }
 
   // If the authorization has expired, display an error message and redirect.
-  if (time() - $transaction->created > _commerce_vantiv_creditcard_authorization_lifespan($card_type)) {
+  if ($card_type && time() - $transaction->created > _commerce_vantiv_creditcard_authorization_lifespan($card_type)) {
     drupal_set_message(t('This authorization has passed its limit and cannot be captured.'), 'error');
     drupal_goto('admin/commerce/orders/' . $form_state['order']->order_id . '/payment');
   }
