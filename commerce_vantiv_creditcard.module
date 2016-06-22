@@ -741,30 +741,7 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
     $success = TRUE;
   }
 
-  $log = [];
-  if ($payment_method['settings']['log']['request']) {
-    $log['request'] = [
-      'type' => get_class($request),
-      'body' => $request_body
-    ];
-  }
-  else {
-    $log['request'] = t('Logging not enabled for requests. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  if ($payment_method['settings']['log']['response']) {
-    $log['response'] = [
-      'type' => get_class($response['response']),
-      'body' => $response_body
-    ];
-  }
-  else {
-    $log['response'] = t('Logging not enabled for responses. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  $transaction->payload[$request_id] = $log;
+  $transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
   if (!$success) {
     $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
   }
@@ -930,30 +907,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
   $response_code = $response['http_code'];
 
   // Build log and complete transaction.
-  $log = [];
-  if ($payment_method['settings']['log']['request']) {
-    $log['request'] = [
-      'type' => get_class($request),
-      'body' => $request_body
-    ];
-  }
-  else {
-    $log['request'] = t('Logging not enabled for requests. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  if ($payment_method['settings']['log']['response']) {
-    $log['response'] = [
-      'type' => get_class($response['response']),
-      'body' => $response_body
-    ];
-  }
-  else {
-    $log['response'] = t('Logging not enabled for responses. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  $transaction->payload[$request_id] = $log;
+  $transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
   if ($response_code !== 200 || empty($response_body) || !in_array($response_body->response, [000, 001, 010])) {
     $transaction->status = COMMERCE_PAYMENT_STATUS_FAILURE;
   }
@@ -1266,6 +1220,51 @@ function _commerce_vantiv_creditcard_authorization_lifespan($card_type) {
 }
 
 /**
+ * Returns an array of information for a commerce payment transaction log entry.
+ *
+ * @param $payment_method
+ * @param $request
+ * @param $request_body
+ * @param $response
+ * @param $response_body
+ *
+ * @return array An array of log information with the following keys:
+ *   - request
+ *     - type
+ *     - body
+ *   - response
+ *     - type
+ *     - body
+ */
+function _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body) {
+  $log = [];
+  if ($payment_method['settings']['log']['request']) {
+    $log['request'] = [
+      'type' => get_class($request),
+      'body' => $request_body
+    ];
+  }
+  else {
+    $log['request'] = t('Logging not enabled for requests. Enable at @url', [
+      '@url' => 'admin/commerce/config/payment-methods'
+    ]);
+  }
+  if ($payment_method['settings']['log']['response']) {
+    $log['response'] = [
+      'type' => get_class($response['response']),
+      'body' => $response_body
+    ];
+  }
+  else {
+    $log['response'] = t('Logging not enabled for responses. Enable at @url', [
+      '@url' => 'admin/commerce/config/payment-methods'
+    ]);
+  }
+
+  return $log;
+}
+
+/**
  * Returns a Vantiv Configuration object for Vantiv API requests.
  *
  * @param array $payment_method Payment method information.
@@ -1341,4 +1340,3 @@ function _commerce_vantiv_creditcard_get_report_group($payment_method, $order) {
   // @todo: Invoke hook to let modules update report group.
   return $payment_method['settings']['report_group'];
 }
-

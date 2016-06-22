@@ -124,30 +124,7 @@ function commerce_vantiv_creditcard_capture_form_submit($form, &$form_state) {
   $response_code = $response['http_code'];
 
   // Update and save the transaction based on the response.
-  $log = [];
-  if ($payment_method['settings']['log']['request']) {
-    $log['request'] = [
-      'type' => get_class($request),
-      'body' => $request_body
-    ];
-  }
-  else {
-    $log['request'] = t('Logging not enabled for requests. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  if ($payment_method['settings']['log']['response']) {
-    $log['response'] = [
-      'type' => get_class($response['response']),
-      'body' => $response_body
-    ];
-  }
-  else {
-    $log['response'] = t('Logging not enabled for responses. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  $transaction->payload[$request_id] = $log;
+  $transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
 
   // If we didn't get an approval response code...
   if ($response_code !== 200 || !in_array($response_body->response, [000, 001, 010])) {
@@ -259,30 +236,7 @@ function commerce_vantiv_creditcard_credit_form_submit($form, &$form_state) {
   $response_code = $response['http_code'];
 
   // Update and save the transaction based on the response.
-  $log = [];
-  if ($payment_method['settings']['log']['request']) {
-    $log['request'] = [
-      'type' => get_class($request),
-      'body' => $request_body
-    ];
-  }
-  else {
-    $log['request'] = t('Logging not enabled for requests. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  if ($payment_method['settings']['log']['response']) {
-    $log['response'] = [
-      'type' => get_class($response['response']),
-      'body' => $response_body
-    ];
-  }
-  else {
-    $log['response'] = t('Logging not enabled for responses. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  $credit_transaction->payload[$request_id] = $log;
+  $credit_transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
 
   // If we didn't get an approval response code...
   if ($response_code !== 200 || !in_array($response_body->response, [000, 001, 010])) {
@@ -392,30 +346,8 @@ function commerce_vantiv_creditcard_void_form_submit($form, &$form_state) {
   $response_code = $response['http_code'];
 
   // Update and save the transaction based on the response.
-  $log = [];
-  if ($payment_method['settings']['log']['request']) {
-    $log['request'] = [
-      'type' => get_class($request),
-      'body' => $request_body
-    ];
-  }
-  else {
-    $log['request'] = t('Logging not enabled for requests. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  if ($payment_method['settings']['log']['response']) {
-    $log['response'] = [
-      'type' => get_class($response['response']),
-      'body' => $response_body
-    ];
-  }
-  else {
-    $log['response'] = t('Logging not enabled for responses. Enable at @url', [
-      '@url' => 'admin/commerce/config/payment-methods'
-    ]);
-  }
-  $void_transaction->payload[$request_id] = $log;
+  // Add logging information to transaction.
+  $void_transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
 
   // If we didn't get an approval response code...
   if ($response_code !== 200 || !in_array($response_body->response, [000, 001, 010])) {
