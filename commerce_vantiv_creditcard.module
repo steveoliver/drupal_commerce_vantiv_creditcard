@@ -126,6 +126,18 @@ function commerce_vantiv_creditcard_menu() {
     'weight' => 2,
     'file' => 'commerce_vantiv_creditcard.admin.inc',
   );
+  // Add a menu item for reversing authorizations.
+  $items['admin/commerce/orders/%commerce_order/payment/%commerce_payment_transaction/vantiv-creditcard-reversal'] = array(
+    'title' => 'Reversal',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('commerce_vantiv_creditcard_reversal_form', 3, 5),
+    'access callback' => 'commerce_vantiv_creditcard_reversal_access',
+    'access arguments' => array(3, 5),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'context' => MENU_CONTEXT_INLINE,
+    'weight' => 2,
+    'file' => 'commerce_vantiv_creditcard.admin.inc',
+  );
   // Add a menu item for processing credits.
   $items['admin/commerce/orders/%commerce_order/payment/%commerce_payment_transaction/vantiv-creditcard-credit'] = array(
     'title' => 'Credit',
@@ -174,6 +186,10 @@ function commerce_vantiv_creditcard_capture_access($order, $transaction) {
     return FALSE;
   }
 
+  if (!empty($transaction->data['auth_depleted'])) {
+    return FALSE;
+  }
+
   // Return FALSE if transaction is a failure.
   if ($transaction->status == COMMERCE_PAYMENT_STATUS_FAILURE) {
     return FALSE;
@@ -181,6 +197,43 @@ function commerce_vantiv_creditcard_capture_access($order, $transaction) {
 
   // Return FALSE if it is more than 30 days past the original authorization.
   if (!empty($transaction->data['card_type']) && time() - $transaction->created > _commerce_vantiv_creditcard_authorization_lifespan($transaction->data['card_type'])) {
+    return FALSE;
+  }
+
+  // Allow access if the user can update this transaction.
+  return commerce_payment_transaction_access('update', $transaction);
+}
+
+/**
+ * Determines access to the reversal form for Vantiv credit card authorizations.
+ *
+ * @param $order
+ *   The order the transaction is on.
+ * @param $transaction
+ *   The payment transaction object to be reversed.
+ *
+ * @return bool
+ *   TRUE or FALSE indicating reversal access.
+ */
+function commerce_vantiv_creditcard_reversal_access($order, $transaction) {
+  // Return FALSE if the transaction isn't for Vantiv Credit Card.
+  // @todo: Check against COMMERCE_CREDIT_REVERSAL constant (8.x) when it exists.
+  if ($transaction->payment_method != 'commerce_vantiv_creditcard' || empty($transaction->remote_id) || $transaction->remote_status == 'reversal') {
+    return FALSE;
+  }
+
+  // Return FALSE if transaction is a failure.
+  if ($transaction->status == COMMERCE_PAYMENT_STATUS_FAILURE) {
+    return FALSE;
+  }
+
+  // Return FALSE if it is more than 30 days past the original authorization.
+  if (!empty($transaction->data['card_type']) && time() - $transaction->created > _commerce_vantiv_creditcard_authorization_lifespan($transaction->data['card_type'])) {
+    return FALSE;
+  }
+
+  // Return FALSE if authorization is depleted.
+  if (!empty($transaction->data['auth_depleted'])) {
     return FALSE;
   }
 
@@ -752,14 +805,15 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
         break;
       case COMMERCE_CREDIT_AUTH_ONLY:
         $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
+        // Save original authorization information for future captures and reversals.
+        $transaction->data['original_amount'] = $charge['amount'];
+        $transaction->data['auth_depleted'] = FALSE;
         break;
     }
   }
   $transaction->message = $transaction->status;
   $transaction->instance_id = $payment_method['instance_id'];
-  $transaction->data = [
-    'card_type' => $card_type
-  ];
+  $transaction->data['card_type'] = $card_type;
   $transaction->remote_id = $response_body->TransactionID;
   $transaction->remote_status = $txn_type;
   $transaction->amount = $charge['amount'];
@@ -918,6 +972,9 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
         break;
       case COMMERCE_CREDIT_AUTH_ONLY:
         $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
+        // Save original authorization information for future captures and reversals.
+        $transaction->data['original_amount'] = $charge['amount'];
+        $transaction->data['auth_depleted'] = FALSE;
         break;
     }
   }
@@ -926,6 +983,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
   $transaction->remote_id = $response_body->TransactionID;
   $transaction->remote_status = $txn_type;
   $transaction->amount = $charge['amount'];
+  $transaction->data['original_amount'] = $charge['amount'];
   $transaction->currency_code = $charge['currency_code'];
   commerce_payment_transaction_save($transaction);
 
