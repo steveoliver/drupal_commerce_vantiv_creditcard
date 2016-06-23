@@ -824,9 +824,6 @@ function commerce_vantiv_creditcard_order_charge($payment_method, $pane_values, 
         $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
         // Save original authorization information for future captures and reversals.
         $transaction->data['auth_amount'] = $charge['amount'];
-        // Capture and reverse counts are for creating unique API ApplicationIDs.
-        $transaction->data['auth_capture_count'] = 1;
-        $transaction->data['auth_reverse_count'] = 1;
         $transaction->message = t('Authorize @amount (@date)', [
           '@amount' => $currency_amount,
           '@date' => format_date(REQUEST_TIME, 'short')
@@ -1003,10 +1000,7 @@ function commerce_vantiv_creditcard_cardonfile_charge($payment_method, $card_dat
       case COMMERCE_CREDIT_AUTH_ONLY:
         $transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
         // Save original authorization information for future captures and reversals.
-        // Capture and reverse counts are for creating unique API ApplicationIDs.
         $transaction->data['auth_amount'] = $charge['amount'];
-        $transaction->data['auth_capture_count'] = 1;
-        $transaction->data['auth_reverse_count'] = 1;
         $transaction->message = t('Authorize @amount (@date)', [
           '@amount' => $currency_amount,
           '@date' => format_date(REQUEST_TIME, 'short')

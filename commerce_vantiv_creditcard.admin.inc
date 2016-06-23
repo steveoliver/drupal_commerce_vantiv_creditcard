@@ -111,12 +111,23 @@ function commerce_vantiv_creditcard_capture_form_submit($form, &$form_state) {
       'PartialCapture' => ($decimal_amount < $transaction->data['auth_amount']) ? 'true' : 'false',
     ],
     'Application' => [
-      'ApplicationID' => $order->order_id . 'capture' . $transaction->data['auth_capture_count']
+      'ApplicationID' => $order->order_id . 'capture'
     ],
   ];
 
-  // Update capture (attempt) count.
-  $transaction->data['auth_capture_count'] += 1;
+  // Create a new transaction to record this capture.
+  $capture_transaction = commerce_payment_transaction_new($payment_method['method_id'], $order->order_id);
+  $capture_transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
+
+  // Copy properties from authorization transaction.
+  $capture_transaction->instance_id = $transaction->instance_id;
+  $capture_transaction->currency_code = $transaction->currency_code;
+
+  // Save capture transaction so ID can be used in request_body.
+  commerce_payment_transaction_save($capture_transaction);
+
+  // Append new transaction id to API request to ensure uniqueness.
+  $request_body['Application']['ApplicationID'] .= $capture_transaction->transaction_id;
 
   // Perform API request and prepare response.
   $response = $request->send($request_body);
@@ -125,9 +136,9 @@ function commerce_vantiv_creditcard_capture_form_submit($form, &$form_state) {
   $response_code = $response['http_code'];
 
   // Add log entry to transaction.
-  $transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
+  $capture_transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
 
-  // Set error messaging on failure or update transaction on success.
+  // Set error messaging on failure or update auth transaction on success.
   if ($response_code !== 200 || !in_array($response_body->response, [000, 001, 010])) {
     drupal_set_message(t('Prior authorization capture failed, so the transaction will remain in a pending status.'), 'error');
     drupal_set_message(check_plain($response_body['message']), 'error');
@@ -135,35 +146,44 @@ function commerce_vantiv_creditcard_capture_form_submit($form, &$form_state) {
   else {
     drupal_set_message(t('Prior authorization captured successfully.'));
 
-//    // Set transaction amount to amount of this capture.
-//    if ($transaction->remote_status == COMMERCE_CREDIT_AUTH_ONLY) {
-//      $transaction->amount = $amount;
-//    }
-//    // Or add to previous capture amount.
-//    else {
-      $transaction->amount += $amount;
-//    }
+    // Set transaction amount to amount of this capture.
+    $capture_transaction->amount = $amount;
 
-    // Update auth amount to reflect this capture.
+    // Update original auth amount to reflect this capture.
     // A non-zero value allows additional captures/reversals.
     $transaction->data['auth_amount'] -= $amount;
 
-    // Set remote id to latest transaction id.
-    // (previous transaction ids are still available in payload entries)
-    $transaction->remote_id = $response_body->TransactionID;
+    // Set remote id with capture transaction id.
+    $capture_transaction->remote_id = $response_body->TransactionID;
 
     // Set local and remote status.
-    $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
-    $transaction->remote_status = COMMERCE_CREDIT_AUTH_CAPTURE;
+    $capture_transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+    $capture_transaction->remote_status = COMMERCE_CREDIT_AUTH_CAPTURE;
 
-    // Add capture to transaction message.
-    $transaction->message .= '<br />' . t('Capture @amount (@date)', [
+    // Add capture transaction event to authorization transaction message.
+    $transaction->message .= '<br />' . t('(!txn) Capture @amount (@date) (Bal: @bal)', [
+      '!txn' => l($capture_transaction->transaction_id, 'admin/commerce/orders/' . $order->order_id . '/payment/' . $capture_transaction->transaction_id . '/view'),
+      '@amount' => $currency_amount,
+      '@date' => format_date(REQUEST_TIME, 'short'),
+      '@bal' => commerce_currency_format($transaction->data['auth_amount'], $transaction->currency_code)
+    ]);
+
+    // Log capture message on capture transaction.
+    $capture_transaction->message = t('(!txn) Capture @amount (@date)', [
+      '!txn' => l($transaction->transaction_id, 'admin/commerce/orders/' . $order->order_id . '/payment/' . $transaction->transaction_id . '/view'),
       '@amount' => $currency_amount,
       '@date' => format_date(REQUEST_TIME, 'short')
     ]);
+
+    // Set auth transaction status as success once depleted.
+    if (empty($transaction->data['auth_amount'])) {
+      $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+    }
+
+    commerce_payment_transaction_save($transaction);
   }
 
-  commerce_payment_transaction_save($transaction);
+  commerce_payment_transaction_save($capture_transaction);
 
   $form_state['redirect'] = 'admin/commerce/orders/' . $form_state['order']->order_id . '/payment';
 }
@@ -271,12 +291,26 @@ function commerce_vantiv_creditcard_reversal_form_submit($form, &$form_state) {
       'TransactionAmount' => $decimal_amount,
     ],
     'Application' => [
-      'ApplicationID' => $order->order_id . 'reversal' . $transaction->data['auth_reverse_count']
+      'ApplicationID' => $order->order_id . 'reversal'
     ],
   ];
 
-  // Update reversal (attempt) count.
-  $transaction->data['auth_reverse_count'] += 1;
+  // Create a new transaction to record this reversal.
+  $reversal_transaction = commerce_payment_transaction_new($payment_method['method_id'], $order->order_id);
+  $reversal_transaction->status = COMMERCE_PAYMENT_STATUS_PENDING;
+
+  // Until COMMERCE_CREDIT_REVERSAL is a constant, use string.
+  $reversal_transaction->remote_status = 'reversal';
+
+  // Copy properties from authorization transaction.
+  $reversal_transaction->instance_id = $transaction->instance_id;
+  $reversal_transaction->currency_code = $transaction->currency_code;
+
+  // Save reversal transaction so ID can be used in request_body.
+  commerce_payment_transaction_save($reversal_transaction);
+
+  // Append new transaction id to API request to ensure uniqueness.
+  $request_body['Application']['ApplicationID'] .= $reversal_transaction->transaction_id;
 
   // Perform API request and prepare response.
   $response = $request->send($request_body);
@@ -285,7 +319,7 @@ function commerce_vantiv_creditcard_reversal_form_submit($form, &$form_state) {
   $response_code = $response['http_code'];
 
   // Add log entry to transaction.
-  $transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
+  $reversal_transaction->payload[$request_id] = _commerce_vantiv_creditcard_transaction_log($payment_method, $request, $request_body, $response, $response_body);
 
   // Set error messaging on failure or update transaction on success.
   if ($response_code !== 200 || !in_array($response_body->response, [000, 001, 010])) {
@@ -295,22 +329,45 @@ function commerce_vantiv_creditcard_reversal_form_submit($form, &$form_state) {
   else {
     drupal_set_message(t('Prior authorization reversed successfully.'));
 
+    // Set transaction amount to zero since this reversal only affects
+    // the authorization amount (potential to capture), and should not
+    // affect the order balance.
+    $reversal_transaction->amount = 0;
+
     // Update auth amount to reflect this reversal.
     // A non-zero value allows additional captures/reversals.
     $transaction->data['auth_amount'] -= $amount;
 
-    // Set remote id to latest transaction id.
-    // (previous transaction ids are still available in payload entries)
-    $transaction->remote_id = $response_body->TransactionID;
+    // Set remote id with reversal transaction id.
+    $reversal_transaction->remote_id = $response_body->TransactionID;
 
-    // Add reversal to transaction message.
-    $transaction->message .= '<br />' . t('Reverse @amount (@date)', [
+    // Set local and remote status.
+    $reversal_transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+
+    // Add reversal transaction event to authorization transaction message.
+    $transaction->message .= '<br />' . t('(!txn) Reverse @amount (@date) (Bal: @bal)', [
+      '!txn' => l($reversal_transaction->transaction_id, 'admin/commerce/orders/' . $order->order_id . '/payment/' . $reversal_transaction->transaction_id . '/view'),
+      '@amount' => $currency_amount,
+      '@date' => format_date(REQUEST_TIME, 'short'),
+      '@bal' => commerce_currency_format($transaction->data['auth_amount'], $transaction->currency_code)
+    ]);
+
+    // Log reversal message on reversal transaction.
+    $reversal_transaction->message = t('(!txn) Reverse @amount (@date)', [
+      '!txn' => l($transaction->transaction_id, 'admin/commerce/orders/' . $order->order_id . '/payment/' . $transaction->transaction_id . '/view'),
       '@amount' => $currency_amount,
       '@date' => format_date(REQUEST_TIME, 'short')
     ]);
+
+    // Set auth transaction status as success once depleted.
+    if (empty($transaction->data['auth_amount'])) {
+      $transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
+    }
+
+    commerce_payment_transaction_save($transaction);
   }
 
-  commerce_payment_transaction_save($transaction);
+  commerce_payment_transaction_save($reversal_transaction);
 
   $form_state['redirect'] = 'admin/commerce/orders/' . $form_state['order']->order_id . '/payment';
 }
