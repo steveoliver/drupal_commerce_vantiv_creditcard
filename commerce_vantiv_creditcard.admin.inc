@@ -387,7 +387,7 @@ function commerce_vantiv_creditcard_credit_form($form, &$form_state, $order, $tr
   $amount = commerce_vantiv_creditcard_amount_to_decimal($transaction->amount, $transaction->currency_code);
 
   $form = confirm_form($form,
-    t('Credit the order for the full amount (@amount)?', [
+    t('Credit the transaction in the amount of @amount?', [
       '@amount' => $amount . ' ' . check_plain($transaction->currency_code)
     ]),
     'admin/commerce/orders/' . $order->order_id . '/payment',
@@ -404,12 +404,17 @@ function commerce_vantiv_creditcard_credit_form($form, &$form_state, $order, $tr
  * Submit handler: process a credit transaction.
  */
 function commerce_vantiv_creditcard_credit_form_submit($form, &$form_state) {
-  $transaction = $form_state['transaction'];
-  $payment_method = $form_state['payment_method'];
-  $order = $form_state['order'];
   if (!commerce_vantiv_creditcard_load_library()) {
     return FALSE;
   }
+
+  $transaction = $form_state['transaction'];
+  $payment_method = $form_state['payment_method'];
+  $order = $form_state['order'];
+
+  // Format amount for different uses.
+  $amount = $transaction->amount;
+  $currency_amount = commerce_currency_format($amount, $transaction->currency_code);
 
   // Initialize configuration.
   $config = new Vantiv\Configuration([
@@ -467,13 +472,16 @@ function commerce_vantiv_creditcard_credit_form_submit($form, &$form_state) {
     $credit_transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
     $credit_transaction->remote_status = COMMERCE_CREDIT_CREDIT;
     $credit_transaction->remote_id = $response_body->TransactionID;
-    $credit_transaction->message = implode('<br />', [
-      $credit_transaction->status,
-      t('Credited: @amount, @date', [
-        '@amount' => commerce_vantiv_creditcard_amount_to_decimal($transaction->amount, $credit_transaction->currency_code),
-        '@date' => format_date(REQUEST_TIME, 'short')
-      ])
+    $credit_transaction->message = '<br />' . t('(!txn) Credit: @amount, @date', [
+      '!txn' => l($transaction->transaction_id, 'admin/commerce/orders/' . $order->order_id . '/payment/' . $transaction->transaction_id . '/view'),
+      '@amount' => $currency_amount,
+      '@date' => format_date(REQUEST_TIME, 'short')
     ]);
+
+    // Mark transaction as credit so it can't be credited again.
+    $transaction->data['credited'] = TRUE;
+
+    commerce_payment_transaction_save($transaction);
   }
 
   commerce_payment_transaction_save($credit_transaction);
@@ -514,20 +522,20 @@ function commerce_vantiv_creditcard_void_form($form, &$form_state, $order, $tran
  * Submit handler: process a vod transaction.
  */
 function commerce_vantiv_creditcard_void_form_submit($form, &$form_state) {
-  $transaction = $form_state['transaction'];
-  $payment_method = $form_state['payment_method'];
-  $order = $form_state['order'];
   if (!commerce_vantiv_creditcard_load_library()) {
     return FALSE;
   }
 
-  // Initialize configuration.
-  $config = new Vantiv\Configuration([
-    'license' => _commerce_vantiv_creditcard_get_license($payment_method),
-    'api_version' => _commerce_vantiv_creditcard_get_api_version($payment_method),
-    'base_url' => _commerce_vantiv_creditcard_get_base_url($payment_method)
-  ]);
-  // Initialize request.
+  $transaction = $form_state['transaction'];
+  $payment_method = $form_state['payment_method'];
+  $order = $form_state['order'];
+
+  // Format amount for different uses.
+  $amount = $transaction->amount;
+  $currency_amount = commerce_currency_format($amount, $transaction->currency_code);
+
+  // Initialize API request.
+  $config = _commerce_vantiv_creditcard_get_config($payment_method);
   $request = new Vantiv\Request\Credit\Void($config);
   $request_body = [
     'Credentials' => [
@@ -578,13 +586,16 @@ function commerce_vantiv_creditcard_void_form_submit($form, &$form_state) {
     $void_transaction->status = COMMERCE_PAYMENT_STATUS_SUCCESS;
     $void_transaction->remote_status = COMMERCE_CREDIT_VOID;
     $void_transaction->remote_id = $response_body->TransactionID;
-    $void_transaction->message = implode('<br />', [
-      $void_transaction->status,
-      t('Voided: @amount, @date', [
-        '@amount' => commerce_vantiv_creditcard_amount_to_decimal($void_transaction->amount, $void_transaction->currency_code),
-        '@date' => format_date(REQUEST_TIME, 'short')
-      ])
+    $void_transaction->message = '<br />' . t('(!txn) Void: @amount (@date)', [
+      '!txn' => l($transaction->transaction_id, 'admin/commerce/orders/' . $order->order_id . '/payment/' . $transaction->transaction_id . '/view'),
+      '@amount' => $currency_amount,
+      '@date' => format_date(REQUEST_TIME, 'short')
     ]);
+
+    // Mark transaction as voided so it can't be voided again.
+    $transaction->data['voided'] = TRUE;
+
+    commerce_payment_transaction_save($transaction);
   }
 
   commerce_payment_transaction_save($void_transaction);

@@ -270,6 +270,11 @@ function commerce_vantiv_creditcard_credit_access($order, $transaction) {
     return FALSE;
   }
 
+  // Return FALSE if transaction has already been voided or credited.
+  if (isset($transaction->data['voided']) || isset($transaction->data['credited'])) {
+    return FALSE;
+  }
+
   // Allow access if the user can update this transaction.
   return commerce_payment_transaction_access('update', $transaction);
 }
@@ -300,6 +305,11 @@ function commerce_vantiv_creditcard_void_access($order, $transaction) {
 
   // Return FALSE if transaction did not occur during the same business day.
   if (date('Ymd') != date('Ymd', $transaction->created)) {
+    return FALSE;
+  }
+
+  // Return FALSE if transaction has already been voided or credited.
+  if (isset($transaction->data['voided']) || isset($transaction->data['credited'])) {
     return FALSE;
   }
 
