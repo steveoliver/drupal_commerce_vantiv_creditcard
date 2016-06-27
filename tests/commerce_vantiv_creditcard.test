@@ -1,0 +1,61 @@
+<?php
+
+/**
+ * @file
+ * Functional tests for the commerce payment module user interface.
+ */
+
+/**
+ * Test payment user interface.
+ */
+class CommerceVantivCreditCardTest extends CommerceBaseTestCase {
+
+  /**
+   * Order object.
+   */
+  protected $order;
+
+  /**
+   * Implementation of getInfo().
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'Commerce Vantiv Credit Card transaction test',
+      'description' => 'Test Vantiv Credit Card service.',
+      'group' => 'Drupal Commerce Vantiv',
+    );
+  }
+
+  /**
+   * Implementation of setUp().
+   */
+  function setUp() {
+    $modules = parent::setUpHelper('all');
+    $modules[] = 'commerce_vantiv_creditcard';
+    parent::setUp($modules);
+
+    // User creation for different operations.
+    $this->store_admin = $this->createStoreAdmin();
+    $this->store_customer = $this->createStoreCustomer();
+
+    // The rule that sends a mail after checkout completion should be disabled
+    //  as it returns an error caused by how mail messages are stored.
+    $rules_config = rules_config_load('commerce_checkout_order_email');
+    $rules_config->active = FALSE;
+    $rules_config->save();
+  }
+
+  /**
+   * Test the PayLeap direct transaction.
+   */
+  public function testCommercePayleapDirectTransaction() {
+    $user = $this->store_customer;
+    // Log in as normal user.
+    $this->drupalLogin($user);
+
+    $product = $this->createDummyProduct($this->randomName(), $this->randomName(), 2, 'USD', $this->store_admin->uid);
+    $this->order = $this->createDummyOrder($user->uid, array($product->product_id => 20));
+
+    $this->assertTrue(FALSE);
+  }
+}
