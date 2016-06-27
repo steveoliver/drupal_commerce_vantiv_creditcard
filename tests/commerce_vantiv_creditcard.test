@@ -30,8 +30,7 @@ class CommerceVantivCreditCardTest extends CommerceBaseTestCase {
    * Implementation of setUp().
    */
   function setUp() {
-    $modules = parent::setUpHelper('all');
-    $modules[] = 'commerce_vantiv_creditcard';
+    $modules = parent::setUpHelper('all', ['commerce_vantiv_creditcard']);
     parent::setUp($modules);
 
     // User creation for different operations.
@@ -43,19 +42,164 @@ class CommerceVantivCreditCardTest extends CommerceBaseTestCase {
     $rules_config = rules_config_load('commerce_checkout_order_email');
     $rules_config->active = FALSE;
     $rules_config->save();
+
+    // Configure payment method.
+    $this->drupalLogin($this->store_admin);
+    $settings = [
+      'parameter[payment_method][settings][payment_method][settings][license]' => 'ffe8fc64481e427e9cbe05249331ec63$$#$$QhDznzORdg0Gte9IQ0oOPiytJcnkg7Ae$$#$$2017-04-05$$#$$cert_key$$#$$SHA512withRSA$$#$$RSA$$#$$1$$#$$D961F4F4F2DE2FE7FA6AA07443A81AB1A35297B639FFE21FCA079756F58EDB754F70861C300DF9CCFC365B94F88D907523D360836F39895EDB8B27E0E54E9ED7423D77A3AF0E464E4867A59D2A6D962DC817AB48412C70425243F0047A662E0762B4FBAA70917154AABB6D160E04E5C86DA41D3729D29CE5CB87AE8A5E95B6F66707ABC80F6AA0C75D52ECFB341B84E055C827A90BCC8B2829BC2A60A6FC908D0B5ED26EACB54CD8FB2B9A1985BA54FBB4C8959BA14706A0E85A12ED2031476AC37475A9D0D2BFC06FF55321B368F3CF7EE59902570BCA601F0723AFAA170F3BD31DB1D5FE590BD82157C0298702802BAD4848D160496357204B6BC4EB7F4CA8',
+      'parameter[payment_method][settings][payment_method][settings][report_group]' => 'commerce1x_testing',
+    ];
+    $this->drupalPost('admin/commerce/config/payment-methods/manage/commerce_payment_commerce_vantiv_creditcard/edit/3', $settings, t('Save'));
+  }
+
+  protected function getPaymentMethod() {
+    $settings = _commerce_vantiv_creditcard_default_settings();
+    $settings['license'] = getenv('VANTIV_DEVHUB_LICENSE') ?: '';
+  }
+
+  protected function getPaymentFormData() {
+    return [
+      'commerce_payment[payment_details][credit_card][owner]' => 'test test',
+      'commerce_payment[payment_details][credit_card][number]' => '4111111111111111',
+      'commerce_payment[payment_details][credit_card][exp_month]' => '07',
+      'commerce_payment[payment_details][credit_card][exp_year]' => '2017',
+      'commerce_payment[payment_details][credit_card][code]' => '111'
+    ];
+  }
+
+  protected function getPaneValues() {
+
+  }
+
+  protected function getCardOnFileData() {
+
+  }
+
+  protected function getOrder() {
+
+  }
+
+  protected function getCharge() {
+
+  }
+
+  protected function getAuthorizationRequest() {
+
+  }
+
+  protected function getAuthCompletionRequest() {
+
+  }
+
+  protected function getSaleRequest() {
+
+  }
+
+  protected function getCreditRequest() {
+
+  }
+
+  protected function getReversalRequest() {
+
+  }
+
+  protected function getVoidRequest() {
+
   }
 
   /**
-   * Test the PayLeap direct transaction.
+   * Create a dummy order and go to checkout payment page.
    */
-  public function testCommercePayleapDirectTransaction() {
-    $user = $this->store_customer;
+  protected function createOrderAndGoToPayment($user = NULL, $products = array()) {
+    if (empty($user)) {
+      $user = $this->store_customer;
+    }
+
     // Log in as normal user.
     $this->drupalLogin($user);
 
-    $product = $this->createDummyProduct($this->randomName(), $this->randomName(), 2, 'USD', $this->store_admin->uid);
-    $this->order = $this->createDummyOrder($user->uid, array($product->product_id => 20));
+    // Order creation, in cart status.
+    $this->order = $this->createDummyOrder($user->uid, $products);
 
-    $this->assertTrue(FALSE);
+    // Go to checkout page.
+    $this->drupalGet($this->getCommerceUrl('checkout'));
+
+    // Check if the page resolves and if the default panes are present.
+    $this->assertResponse(200, t('Store customer user is able to access the checkout page'));
+    $this->assertTitle(t('Checkout') . ' | Drupal', t('Checkout page successfully loaded'));
+
+    // Generate random information, as city, postal code, etc.
+    $address_info = $this->generateAddressInformation();
+
+    // Fill in the billing address information
+    $billing_pane = $this->xpath("//select[starts-with(@name, 'customer_profile_billing[commerce_customer_address]')]");
+    $this->drupalPostAJAX(NULL, array((string) $billing_pane[0]['name'] => 'US'), (string) $billing_pane[0]['name']);
+
+    // Check if the country has been selected correctly, this uses XPath as the
+    // ajax call replaces the element and the id may change.
+    $this->assertFieldByXPath("//select[starts-with(@id, 'edit-customer-profile-billing-commerce-customer-address')]//option[@selected='selected']", 'US', t('Country selected'));
+
+    // Fill in the required information for billing pane, with a random State.
+    $info = array(
+      'customer_profile_billing[commerce_customer_address][und][0][name_line]' => $address_info['name_line'],
+      'customer_profile_billing[commerce_customer_address][und][0][thoroughfare]' => $address_info['thoroughfare'],
+      'customer_profile_billing[commerce_customer_address][und][0][locality]' => $address_info['locality'],
+      'customer_profile_billing[commerce_customer_address][und][0][administrative_area]' => $address_info['administrative_area'],
+      'customer_profile_billing[commerce_customer_address][und][0][postal_code]' => $address_info['postal_code'],
+    );
+    $this->drupalPost(NULL, $info, t('Continue to next step'));
+
+    // Check for default panes and information in this checkout phase.
+    $this->assertTitle(t('Review order') . ' | Drupal', t('Review order page successfully loaded'));
   }
+
+  public function testCommerceVantivCreditCardPaymentCheckout() {
+
+    $this->createOrderAndGoToPayment();
+
+    $this->assertText('Credit Card via Vantiv', t('Vantiv payment method pane is present'));
+
+    // Finish checkout process.
+    $this->drupalPost(NULL, $this->getPaymentFormData(), t('Continue to next step'));
+
+    // Load payment to check its status.
+    $payment = commerce_payment_transaction_load_multiple(array(), array('order_id' => $this->order->order_id), TRUE);
+
+    // Order status should be pending when completing checkout process.
+    $this->assertEqual(reset($payment)->status, 'success', t('Payment was successfully processed'));
+
+    // Check if the completion message has been displayed.
+    $this->assertTitle(t('Checkout complete') . ' | Drupal', t('Checkout process completed successfully'));
+  }
+
+  /**
+   * Test that Vantiv credit card types overwrite commerce_payment_credit_card_types().
+   */
+  public function testVantivCreditCardTypes() {
+    // Maintains relation between Commerce Payment and Vantiv credit card type keys.
+  }
+
+  /**
+   * Tests the number format helper function that produces Vantiv acceptible amount values.
+   */
+  public function testVantivCreditCardAmountToDecimal() {
+
+  }
+
+  public function testCreditCardOrderCharge() {
+    $payment_method = [];
+    $pane_values = [];
+    $order = [];
+    $charge = [];
+    // @todo
+  }
+
+  public function testCardOnFileCharge() {
+    $payment_method = [];
+    $card_data = [];
+    $order = [];
+    $charge = [];
+    // @todo
+  }
+
 }
