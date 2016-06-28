@@ -1,0 +1,42 @@
+api: '2'
+core: 7.x
+projects:
+  drupal:
+    version: '7.44'
+    patch:
+      - 'http://drupal.org/files/issues/install-redirect-on-empty-database-728702-36.patch'
+      - 'http://drupal.org/files/drupal-1470656-14.patch'
+      - 'http://drupal.org/files/drupal-865536-204.patch'
+      - 'http://drupal.org/files/issues/drupal-7.x-allow_profile_change_sys_req-1772316-28.patch'
+      - 'http://drupal.org/files/1275902-15-entity_uri_callback-D7.patch'
+  addressfield:
+    version: 1.2
+  ctools:
+    version: 1.9
+  entity:
+    version: 1.7
+  libraries:
+    version: 2.2
+  rules:
+    version: 2.9
+  views:
+    version: 3.14
+  commerce:
+    version: 1.13
+  commerce_vantiv:
+    download:
+      url: 'https://github.com/steveoliver/drupal_commerce_vantiv_creditcard.git'
+      branch: 7.x-1.x
+  jquery_update:
+    version: 3.x-dev
+  commerce_cardonfile:
+    version: 2.x-dev
+  interval:
+    version: 1.0
+  commerce_recurring:
+    version: 2.x-dev
+libraries:
+  vantiv-devhub-php:
+    download:
+      type: git
+      url: 'https://github.com/steveoliver/vantiv_devhub_sdk_php.git'
