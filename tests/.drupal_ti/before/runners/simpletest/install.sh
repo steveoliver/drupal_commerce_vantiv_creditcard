@@ -2,6 +2,8 @@
 
 set -e
 
+echo "WE ARE IN SIMPLETEST INSTALL.SH!"
+
 # Move to sites/all.
 cd "$DRUPAL_TI_DRUPAL_DIR/DRUPAL_TI_MODULES_PATH/../"
 
