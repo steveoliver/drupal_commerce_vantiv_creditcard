@@ -3,8 +3,7 @@
 echo "WE ARE IN SIMPLETEST BEFORE_SCRIPT"
 
 # Move to sites/all.
-cd "$DRUPAL_TI_DRUPAL_DIR/$DRUPAL_TI_MODULES_PATH"
-cd ../
+cd "$DRUPAL_TI_DRUPAL_DIR/$DRUPAL_TI_MODULES_PATH/../"
 
 # Make libraries directory.
 mkdir -p libraries
@@ -15,7 +14,7 @@ git clone --depth 1 https://github.com/steveoliver/vantiv_devhub_sdk_php.git lib
 # Download module dependencies.
 mkdir -p modules
 cd modules
-drush dl \
+drush dl --yes \
   addressfield-7.x-1.2 \
   ctools-7.x-1.9 \
   entity-7.x-1.7 \
