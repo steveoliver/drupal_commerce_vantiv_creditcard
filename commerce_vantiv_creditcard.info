@@ -3,6 +3,7 @@ description = Provides a Credit Card payment method from Vantiv.
 package = Vantiv
 dependencies[] = addressfield
 dependencies[] = ctools
+dependencies[] = interval
 dependencies[] = commerce
 dependencies[] = libraries
 dependencies[] = jquery_update
