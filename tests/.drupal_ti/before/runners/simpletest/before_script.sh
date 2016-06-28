@@ -3,6 +3,16 @@
 echo "WE ARE IN SIMPLETEST BEFORE_SCRIPT"
 
 # Move to sites/all.
+echo "TRAVIS_BUILD_DIR: $TRAVIS_BUILD_DIR"
+cd "$TRAVIS_BUILD_DIR"
+echo "ls -al"
+ls -al
+echo "cd ../"
+cd ../
+echo "ls -al"
+ls -al
+echo "ls -al drupal-7"
+ls -al drupal-7
 echo "Trying to get to <drupal root>/sites/all..."
 echo "DRUPAL_TI_DRUPAL_DIR: $DRUPAL_TI_DRUPAL_DIR"
 cd "$DRUPAL_TI_DRUPAL_DIR"
