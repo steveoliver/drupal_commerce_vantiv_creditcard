@@ -3,7 +3,7 @@
 echo "WE ARE IN SIMPLETEST BEFORE_SCRIPT"
 
 # Move to sites/all.
-cd "$DRUPAL_TI_DRUPAL_DIR/DRUPAL_TI_MODULES_PATH"
+cd "$DRUPAL_TI_DRUPAL_DIR/$DRUPAL_TI_MODULES_PATH"
 cd ../
 
 # Make libraries directory.
