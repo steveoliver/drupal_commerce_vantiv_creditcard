@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -e $DRUPAL_TI_DEBUG
 
 echo "BEFORE SCRIPT!"
 echo "DRUPAL DIR: $DRUPAL_TI_DRUPAL_DIR"
