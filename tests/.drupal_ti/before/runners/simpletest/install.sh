@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -e $DRUPAL_TI_DEBUG
 
 echo "WE ARE IN SIMPLETEST INSTALL.SH!"
 
