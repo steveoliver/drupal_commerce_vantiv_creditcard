@@ -30,7 +30,7 @@ class CommerceVantivCreditCardTest extends CommerceBaseTestCase {
    * Implementation of setUp().
    */
   function setUp() {
-    $modules = parent::setUpHelper('all', ['commerce_vantiv_creditcard']);
+    $modules = parent::setUpHelper('all', ['commerce_order', 'commerce_vantiv_creditcard']);
     parent::setUp($modules);
 
     // User creation for different operations.
