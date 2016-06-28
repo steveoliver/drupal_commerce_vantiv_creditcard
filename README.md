@@ -4,7 +4,7 @@
 
 # Drupal Commerce 1.x (Drupal 7) payment method
 
-Integrates [Vantiv online payments](https://www.vantiv.com/online-payments) withr Drupal Commerce (7.x-1.x). Implements [eProtect](https://www.vantiv.com/developers/ecommerce-payments#security-features) to reduce PCI DSS v3.1 controls. Supports (Card on file](https://www.drupal.org/project/commerce_cardonfile). Supports terminal (Drupal Commerce back-end) payments.
+Integrates [Vantiv online payments](https://www.vantiv.com/online-payments) withr Drupal Commerce (7.x-1.x). Implements [eProtect](https://www.vantiv.com/developers/ecommerce-payments#security-features) to reduce PCI DSS v3.1 controls. Supports [Card on file](https://www.drupal.org/project/commerce_cardonfile). Supports terminal (Drupal Commerce back-end) payments.
 
 # Dependencies
  - [Drupal Commerce](https://www.drupal.org/project/commerce)
