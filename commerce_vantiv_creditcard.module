@@ -15,8 +15,8 @@ define('VANTIV_INTEGRATION_IFRAME', 'iframe');
  */
 function commerce_vantiv_creditcard_libraries_info() {
   return [
-    'vantiv-devhub-php' => [
-      'name' => 'Vantiv DevHub API Client Library for PHP',
+    'vantiv-php-sdk' => [
+      'name' => 'Vantiv PHP SDK',
       'vendor url' => 'https://apideveloper.vantiv.com/',
       'download url' => 'https://github.com/steveoliver/vantiv-devhub-sdk-php',
       'dependencies' => [],
@@ -58,12 +58,12 @@ function commerce_vantiv_creditcard_libraries_info() {
 }
 
 /**
- * Brings the Vantiv php client library into scope.
+ * Brings the Vantiv PHP SDK library into scope.
  */
 function commerce_vantiv_creditcard_load_library() {
-  $library = libraries_load('vantiv-devhub-php');
+  $library = libraries_load('vantiv-php-sdk');
   if (!$library || empty($library['loaded'])) {
-    watchdog('commerce_vantiv_creditcard', 'Failure to load Vantiv DevHub API PHP SDK.', [], WATCHDOG_CRITICAL);
+    watchdog('commerce_vantiv_creditcard', 'Failure to load Vantiv PHP SDK.', [], WATCHDOG_CRITICAL);
     return FALSE;
   }
   return TRUE;

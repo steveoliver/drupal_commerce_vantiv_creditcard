@@ -12,7 +12,7 @@ cd "$DRUPAL_TI_DRUPAL_DIR/$DRUPAL_TI_MODULES_PATH/../"
 mkdir -p libraries
 
 # Download library dependencies.
-git clone --depth 1 https://github.com/steveoliver/vantiv_devhub_sdk_php.git libraries/vantiv-devhub-php
+git clone --depth 1 https://github.com/steveoliver/vantiv_devhub_sdk_php.git libraries/vantiv-php-sdk
 
 # Download module dependencies.
 mkdir -p modules

@@ -36,7 +36,7 @@ projects:
   commerce_recurring:
     version: 2.x-dev
 libraries:
-  vantiv-devhub-php:
+  vantiv-php-sdk:
     download:
       type: git
       url: 'https://github.com/steveoliver/vantiv_devhub_sdk_php.git'
