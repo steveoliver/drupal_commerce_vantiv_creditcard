@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e $DRUPAL_TI_DEBUG
-
 echo "BEFORE INSTALL"
 echo "DRUPAL DIR: $DRUPAL_TI_DRUPAL_DIR"
 

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e $DRUPAL_TI_DEBUG
-
 echo "WE ARE IN SIMPLETEST BEFORE_SCRIPT"
 
 # Move to sites/all.
