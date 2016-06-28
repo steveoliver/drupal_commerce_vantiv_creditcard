@@ -1,29 +1,12 @@
 #!/bin/bash
 
-echo "WE ARE IN SIMPLETEST BEFORE_SCRIPT"
+set -e $DRUPAL_TI_DEBUG
 
-# Move to sites/all.
-echo "TRAVIS_BUILD_DIR: $TRAVIS_BUILD_DIR"
-cd "$TRAVIS_BUILD_DIR"
-echo "ls -al"
-ls -al
-echo "cd ../"
-cd ../
-echo "ls -al"
-ls -al
-echo "ls -al drupal-7"
-ls -al drupal-7
-echo "Trying to get to <drupal root>/sites/all..."
-echo "DRUPAL_TI_DRUPAL_DIR: $DRUPAL_TI_DRUPAL_DIR"
-cd "$DRUPAL_TI_DRUPAL_DIR"
-echo "DRUPAL_TI_MODULES_PATH: $DRUPAL_TI_MODULES_PATH"
-cd "$DRUPAL_TI_MODULES_PATH"
-echo "ls $DRUPAL_TI_MODULES_PATH:"
-ls "$DRUPAL_TI_MODULES_PATH"
-echo "cd ../"
-cd ../
-echo "ls:"
-ls
+# Ensure the right Drupal version is installed.
+drupal_ti_ensure_drupal
+
+# Move to sites/all
+cd "$DRUPAL_TI_DRUPAL_DIR/$DRUPAL_TI_MODULES_PATH/../"
 
 # Make libraries directory.
 mkdir -p libraries
