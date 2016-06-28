@@ -17,7 +17,7 @@ cd modules
 drush dl \
   addressfield-7.x-1.2 \
   ctools-7.x-1.9 \
-  entity-7.x-.7 \
+  entity-7.x-1.7 \
   libraries-7.x-2.2 \
   rules-7.x-2.9 \
   views-7.x-3.14 \
