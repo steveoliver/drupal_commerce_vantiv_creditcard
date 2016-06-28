@@ -28,3 +28,9 @@ drush dl \
   commerce_cardonfile-7.x-2.x \
   commerce_recurring-7.x-2.x \
   interval-7.x-1.0
+
+# Go to Drupal root directory.
+cd "$DRUPAL_TI_DRUPAL_DIR"
+
+# Enable hard dependencies
+drush en -y rules
